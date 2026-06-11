@@ -149,6 +149,7 @@ const sceneAudios = new Map();
 let bgmAudio;
 let bgmTargetVolume = 0.42;
 let bgmFadeId = 0;
+let bgmLoopFading = false;
 let resetTimer = 0;
 const activePointers = new Map();
 let isDragging = false;
@@ -801,16 +802,18 @@ function setupSceneAudio() {
     const audio = new Audio(`${SFX_BASE_URL}${file}`);
     audio.preload = "auto";
     audio.volume = key === "relief" ? 0.62 : 0.72;
-    audio.playbackRate = key === "relief" ? 0.75 : 1;
+    audio.playbackRate = key === "relief" ? 0.85 : 1;
     sceneAudios.set(key, audio);
   });
 }
 
 function setupBgmAudio() {
   bgmAudio = new Audio(BGM_URL);
-  bgmAudio.loop = true;
+  bgmAudio.loop = false;
   bgmAudio.preload = "auto";
   bgmAudio.volume = 0;
+  bgmAudio.addEventListener("timeupdate", handleBgmTimeUpdate);
+  bgmAudio.addEventListener("ended", restartBgmLoop);
   ensureBgmPlaying();
   fadeBgmTo(0.42, 2200);
 }
@@ -831,8 +834,8 @@ function setBgmVolume(volume) {
   bgmAudio.volume = volume;
 }
 
-function fadeBgmTo(volume, duration = 1200) {
-  bgmTargetVolume = volume;
+function fadeBgmTo(volume, duration = 1200, rememberTarget = true) {
+  if (rememberTarget) bgmTargetVolume = volume;
   if (!bgmAudio) return;
   window.cancelAnimationFrame(bgmFadeId);
   const startVolume = bgmAudio.volume;
@@ -846,6 +849,24 @@ function fadeBgmTo(volume, duration = 1200) {
     }
   };
   bgmFadeId = window.requestAnimationFrame(tick);
+}
+
+function handleBgmTimeUpdate() {
+  if (!bgmAudio || bgmLoopFading || !Number.isFinite(bgmAudio.duration)) return;
+  const remaining = bgmAudio.duration - bgmAudio.currentTime;
+  if (remaining > 2.2) return;
+  bgmLoopFading = true;
+  fadeBgmTo(0, Math.max(800, remaining * 1000), false);
+}
+
+function restartBgmLoop() {
+  if (!bgmAudio) return;
+  window.cancelAnimationFrame(bgmFadeId);
+  bgmAudio.currentTime = 0;
+  bgmAudio.volume = 0;
+  bgmLoopFading = false;
+  ensureBgmPlaying();
+  fadeBgmTo(bgmTargetVolume, 1800, false);
 }
 
 function stopSceneAudio(except = "") {
