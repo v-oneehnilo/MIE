@@ -112,6 +112,7 @@ const VISION_VERSION = "0.10.35";
 const GESTURE_MODEL_URL =
   "https://storage.googleapis.com/mediapipe-tasks/gesture_recognizer/gesture_recognizer.task";
 const ENTRY_LEAF_SCALE = 0.78;
+const MODEL_MAX_LOAD_ATTEMPTS = 3;
 const targetRotation = new THREE.Euler(-0.08, 0.16, 0);
 const currentRotation = new THREE.Euler(-0.08, 0.16, 0);
 
@@ -865,13 +866,22 @@ function frameModel(root) {
   root.position.y -= framedBox.getCenter(new THREE.Vector3()).y * 0.12;
 }
 
-function loadModel() {
+async function loadModel(attempt = 1) {
+  modelLoading.classList.remove("is-hidden");
+  modelLoading.querySelector("strong").textContent = attempt === 1 ? "正在加载 3D 模型" : `正在重试 3D 模型 ${attempt}/${MODEL_MAX_LOAD_ATTEMPTS}`;
+  modelLoadingDetail.textContent = attempt === 1 ? "先显示文物预览，模型加载完成后自动切换" : "网络或解码器响应较慢，正在重新请求模型文件。";
+
+  if (MeshoptDecoder.ready) {
+    await MeshoptDecoder.ready;
+  }
+
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
   const startedAt = performance.now();
+  const modelUrl = attempt === 1 ? canvas.dataset.model : `${canvas.dataset.model}?retry=${attempt}-${Date.now()}`;
 
   loader.load(
-    canvas.dataset.model,
+    modelUrl,
     (gltf) => {
       relicRoot = gltf.scene;
       tintModel(relicRoot);
@@ -894,9 +904,15 @@ function loadModel() {
       modelLoadingDetail.textContent = `已加载 ${percent}% · 首次打开会稍慢，之后浏览器会缓存`;
     },
     (error) => {
+      console.error(error);
+      if (attempt < MODEL_MAX_LOAD_ATTEMPTS) {
+        modelLoading.querySelector("strong").textContent = "3D 模型加载较慢";
+        modelLoadingDetail.textContent = `正在自动重试 ${attempt + 1}/${MODEL_MAX_LOAD_ATTEMPTS}，无需刷新页面。`;
+        window.setTimeout(() => loadModel(attempt + 1), 900 * attempt);
+        return;
+      }
       modelLoading.querySelector("strong").textContent = "3D 模型加载失败";
       modelLoadingDetail.textContent = "已保留文物预览图，可以刷新或换网络后重试。";
-      console.error(error);
     },
   );
 }
