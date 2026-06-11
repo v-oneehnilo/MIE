@@ -118,6 +118,7 @@ const GESTURE_MODEL_URL =
   "https://storage.googleapis.com/mediapipe-tasks/gesture_recognizer/gesture_recognizer.task";
 const SFX_BASE_URL = "https://raw.githubusercontent.com/v-oneehnilo/MIE/gh-pages/assets/sfx/";
 const ENTRY_LEAF_SCALE = 0.78;
+const ENTRY_MAX_LOAD_ATTEMPTS = 3;
 const MODEL_MAX_LOAD_ATTEMPTS = 3;
 const targetRotation = new THREE.Euler(-0.08, 0.16, 0);
 const currentRotation = new THREE.Euler(-0.08, 0.16, 0);
@@ -131,6 +132,8 @@ let entryCamera;
 let entryParticleRoot;
 let entryLeafRoot;
 let entrySelectedLeaf;
+let entryFallbackTexture;
+let entryFallbackActive = false;
 let entryClock = new THREE.Clock();
 const entryLeafObjects = [];
 const entryRaycaster = new THREE.Raycaster();
@@ -169,6 +172,7 @@ let lastIndexX = null;
 let lastIndexMoveAt = 0;
 let entryFistPrimed = false;
 let entryActive = true;
+let reportQueued = false;
 
 function syncLineOverlayFacing() {
   if (!lineOverlayRoot || !modelPivot) return;
@@ -189,10 +193,7 @@ function updateProgress() {
     button.querySelector("em").textContent = done ? "已观察" : "未观察";
   });
 
-  if (count === total) {
-    window.clearTimeout(resetTimer);
-    resetTimer = window.setTimeout(showReport, 900);
-  }
+  if (count === total) queueReport();
 }
 
 function setTarget(rotation, zoom = 1) {
@@ -278,6 +279,7 @@ function makeEntryLeaf(source, config) {
       metalness: 0.44,
       roughness: 0.58,
       envMapIntensity: 0.28,
+      side: THREE.DoubleSide,
     });
   });
 
@@ -299,10 +301,8 @@ function makeEntryLeaf(source, config) {
   entryLeafObjects.push(group);
 }
 
-function loadEntryLeaves() {
-  const loader = new GLTFLoader();
-  loader.setMeshoptDecoder(MeshoptDecoder);
-  const configs = [
+function getEntryLeafConfigs() {
+  return [
     { position: [-3.6, 1.35, -2.4], scale: 1.08, rotation: [-0.12, -0.35, 0.18], floatSpeed: 0.7, floatPhase: 0.2 },
     { position: [-1.35, 2.0, -3.1], scale: 0.88, rotation: [-0.05, 0.18, -0.12], floatSpeed: 0.84, floatPhase: 1.4 },
     { position: [1.52, 1.65, -2.7], scale: 1.02, rotation: [-0.16, -0.18, 0.08], floatSpeed: 0.76, floatPhase: 2.1 },
@@ -312,10 +312,76 @@ function loadEntryLeaves() {
     { position: [-2.62, -1.45, -2.5], scale: 0.9, rotation: [-0.14, 0.24, 0.16], floatSpeed: 0.78, floatPhase: 6.1 },
     { position: [0.02, -0.12, -1.85], scale: 1.34, rotation: [-0.1, 0, 0], floatSpeed: 0.68, floatPhase: 2.8 },
   ];
+}
 
-  loader.load(canvas.dataset.model, (gltf) => {
-    configs.forEach((config) => makeEntryLeaf(gltf.scene, config));
+function makeEntryFallbackLeaf(config) {
+  if (!entryFallbackTexture) return;
+  const material = new THREE.MeshBasicMaterial({
+    map: entryFallbackTexture,
+    color: 0xcaa21d,
+    transparent: true,
+    opacity: 0.86,
+    side: THREE.DoubleSide,
+    depthWrite: false,
   });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.38), material);
+  mesh.rotation.set(config.rotation[0], config.rotation[1] * 0.35, config.rotation[2]);
+
+  const group = new THREE.Group();
+  group.position.set(config.position[0], config.position[1], config.position[2]);
+  group.scale.setScalar(config.scale * 0.66);
+  group.add(mesh);
+  group.userData.baseY = config.position[1];
+  group.userData.floatSpeed = config.floatSpeed;
+  group.userData.floatPhase = config.floatPhase;
+  group.userData.entryLeaf = true;
+  group.userData.fallbackLeaf = true;
+  entryLeafRoot.add(group);
+  entryLeafObjects.push(group);
+}
+
+function createEntryFallbackLeaves() {
+  if (entryFallbackActive || entryLeafObjects.length) return;
+  entryFallbackActive = true;
+  const loader = new THREE.TextureLoader();
+  loader.load(
+    modelPreview.src,
+    (texture) => {
+      entryFallbackTexture = texture;
+      entryFallbackTexture.colorSpace = THREE.SRGBColorSpace;
+      getEntryLeafConfigs().forEach((config) => makeEntryFallbackLeaf(config));
+      entryGestureStatus.textContent = "入口模型较慢，已显示备用金叶";
+    },
+    undefined,
+    () => {
+      entryGestureStatus.textContent = "入口模型加载较慢，请稍后或直接刷新";
+    },
+  );
+}
+
+async function loadEntryLeaves(attempt = 1) {
+  if (MeshoptDecoder.ready) {
+    await MeshoptDecoder.ready;
+  }
+  const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
+  const configs = getEntryLeafConfigs();
+  const modelUrl = attempt === 1 ? canvas.dataset.model : `${canvas.dataset.model}?entryRetry=${attempt}-${Date.now()}`;
+
+  loader.load(modelUrl, (gltf) => {
+    if (entryFallbackActive) return;
+    configs.forEach((config) => makeEntryLeaf(gltf.scene, config));
+  }, undefined, () => {
+    if (attempt < ENTRY_MAX_LOAD_ATTEMPTS) {
+      window.setTimeout(() => loadEntryLeaves(attempt + 1), 700 * attempt);
+      return;
+    }
+    createEntryFallbackLeaves();
+  });
+
+  window.setTimeout(() => {
+    if (!entryLeafObjects.length) createEntryFallbackLeaves();
+  }, attempt === 1 ? 3500 : 5200);
 }
 
 function initEntryRenderer() {
@@ -480,20 +546,20 @@ function getIndexDirection(landmarks) {
   return dy < 0 ? "up" : "down";
 }
 
-function rotateModelFromIndex(landmarks, now) {
-  if (!landmarks?.[8]) return;
-  const mirroredX = 1 - landmarks[8].x;
-  if (lastIndexX === null) {
-    lastIndexX = mirroredX;
-    lastIndexMoveAt = now;
-    return;
-  }
-  const delta = mirroredX - lastIndexX;
-  lastIndexX = mirroredX;
-  if (now - lastIndexMoveAt < 32 || Math.abs(delta) < 0.008) return;
+function queueReport() {
+  if (reportQueued) return;
+  reportQueued = true;
+  window.clearTimeout(resetTimer);
+  resetTimer = window.setTimeout(() => {
+    reportQueued = false;
+    showReport();
+  }, 900);
+}
+
+function rotateModelFromFist(now) {
+  if (now - lastIndexMoveAt < 32) return;
   lastIndexMoveAt = now;
-  targetRotation.y += THREE.MathUtils.clamp(delta * 2.2, -0.045, 0.045);
-  targetRotation.x = THREE.MathUtils.clamp(targetRotation.x, -0.9, 0.9);
+  targetRotation.y += 0.018;
 }
 
 function drawGestureOverlay(landmarks, mode) {
@@ -578,9 +644,8 @@ function handleGestureResult(result, now) {
       return;
     }
 
-    setActiveGestureGuide("Index_Move");
-    rotateModelFromIndex(landmarks, now);
-    setGestureReadout("食指旋转", "左右移动食指旋转模型");
+    setActiveGestureGuide("");
+    setGestureReadout("食指水平", "食指向上/向下切换，握拳旋转模型");
     return;
   }
 
@@ -589,25 +654,25 @@ function handleGestureResult(result, now) {
 
   if (label === "Thumb_Up") {
     setActiveGestureGuide("");
-    setGestureReadout("请用食指", "食指向上/向下切换，左右移动旋转");
+    setGestureReadout("请用食指或握拳", "食指切换，握拳缓慢旋转");
     return;
   }
 
   if (label === "Thumb_Down") {
     setActiveGestureGuide("");
-    setGestureReadout("请用食指", "食指向上/向下切换，左右移动旋转");
+    setGestureReadout("请用食指或握拳", "食指切换，握拳缓慢旋转");
     return;
   }
 
   if (label === "Closed_Fist") {
-    setActiveGestureGuide(label);
-    setGestureReadout("回到待观察", "握拳回到完整模型视角");
-    if (canRunGestureAction(label, now)) setIdle();
+    setActiveGestureGuide("Index_Move");
+    rotateModelFromFist(now);
+    setGestureReadout("握拳旋转", "正在缓慢旋转当前模型");
     return;
   }
 
   setActiveGestureGuide("");
-  setGestureReadout(label, "食指向上/向下切换，左右移动旋转");
+  setGestureReadout(label, "食指向上/向下切换，握拳旋转模型");
 }
 
 async function loadGestureRecognizer() {
@@ -663,7 +728,7 @@ async function startGestureControl() {
     gestureCanvas.width = gestureVideo.videoWidth || 640;
     gestureCanvas.height = gestureVideo.videoHeight || 480;
     gestureRunning = true;
-    setGestureReadout("手势已开启", "食指向上/向下切换，左右移动旋转");
+    setGestureReadout("手势已开启", "食指向上/向下切换，握拳旋转模型");
     entryGestureStatus.textContent = "请握拳，然后松开手指进入";
 
     const detect = () => {
@@ -738,6 +803,7 @@ function playScene(key) {
   if (!item) return;
 
   window.clearTimeout(resetTimer);
+  reportQueued = false;
   app.dataset.report = "closed";
   app.dataset.scene = item.id;
   playSceneAudio(item.sfx);
@@ -902,6 +968,7 @@ function tintModel(root) {
     transparent: false,
     opacity: 1,
     depthWrite: true,
+    side: THREE.DoubleSide,
   });
 
   root.traverse((child) => {

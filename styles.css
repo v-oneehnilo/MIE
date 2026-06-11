@@ -514,10 +514,10 @@ h1 {
 }
 
 .gesture-panel {
-  position: absolute;
+  position: fixed;
   left: 18px;
   top: 18px;
-  z-index: 9;
+  z-index: 120;
   width: min(360px, 48%);
   min-height: 238px;
   overflow: hidden;
@@ -531,8 +531,20 @@ h1 {
   transition: opacity 180ms ease, transform 180ms ease;
 }
 
+.app[data-entry="closed"] .gesture-panel {
+  left: 34px;
+  top: min(292px, calc(100vh - 260px));
+  width: min(360px, calc(100vw - 68px));
+}
+
+.app[data-entry="open"] .gesture-panel {
+  left: 18px;
+  top: 18px;
+}
+
 .gesture-panel.is-active {
   opacity: 1;
+  pointer-events: auto;
   transform: translateY(0);
 }
 
@@ -1437,6 +1449,12 @@ h1 {
     top: 16px;
     width: calc(100% - 36px);
     min-height: 184px;
+  }
+
+  .app[data-entry="closed"] .gesture-panel {
+    left: 18px;
+    top: min(250px, calc(100vh - 210px));
+    width: calc(100% - 36px);
   }
 
   .gesture-guide div {

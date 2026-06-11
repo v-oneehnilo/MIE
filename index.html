@@ -16,7 +16,7 @@
     <link rel="preload" href="https://raw.githubusercontent.com/v-oneehnilo/MIE/gh-pages/assets/sfx/relief-hammer.mp3" as="audio" type="audio/mpeg" />
     <link rel="preload" href="https://raw.githubusercontent.com/v-oneehnilo/MIE/gh-pages/assets/sfx/ram-sheep.mp3" as="audio" type="audio/mpeg" />
     <link rel="preload" href="https://raw.githubusercontent.com/v-oneehnilo/MIE/gh-pages/assets/sfx/symmetry-sheep.mp3" as="audio" type="audio/mpeg" />
-    <link rel="stylesheet" href="styles.css?v=foil-side-angle-1" />
+    <link rel="stylesheet" href="styles.css?v=entry-gesture-rotate-1" />
     <script type="importmap">
       {
         "imports": {
@@ -39,6 +39,31 @@
           <span id="entryGestureStatus">手势入口待机</span>
         </div>
       </section>
+      <div class="gesture-panel" id="gesturePanel" aria-hidden="true">
+        <video id="gestureVideo" playsinline muted></video>
+        <canvas id="gestureCanvas"></canvas>
+        <div class="gesture-readout">
+          <strong id="gestureName">手势待机</strong>
+          <span id="gestureStatus">点击开启后使用摄像头识别手势</span>
+        </div>
+        <div class="gesture-guide" aria-label="手势控制说明">
+          <div data-gesture-guide="Index_Up">
+            <b>上</b>
+            <span>食指向上</span>
+            <em>上一个观察点</em>
+          </div>
+          <div data-gesture-guide="Index_Down">
+            <b>下</b>
+            <span>食指向下</span>
+            <em>下一个观察点</em>
+          </div>
+          <div data-gesture-guide="Index_Move">
+            <b>拳</b>
+            <span>握拳</span>
+            <em>缓慢旋转模型</em>
+          </div>
+        </div>
+      </div>
       <section class="desk" aria-label="羊头纹杏形金叶 3D观察台">
         <header class="topbar">
           <div>
@@ -107,31 +132,6 @@
                 <span id="hudCode">MIE-00</span>
                 <strong id="hudTitle">待观察</strong>
                 <p id="hudText">选择右侧词条，系统将在模型表面显示对应识别线、采样点和结构说明。</p>
-              </div>
-              <div class="gesture-panel" id="gesturePanel" aria-hidden="true">
-                <video id="gestureVideo" playsinline muted></video>
-                <canvas id="gestureCanvas"></canvas>
-                <div class="gesture-readout">
-                  <strong id="gestureName">手势待机</strong>
-                  <span id="gestureStatus">点击开启后使用摄像头识别手势</span>
-                </div>
-                <div class="gesture-guide" aria-label="手势控制说明">
-                  <div data-gesture-guide="Index_Up">
-                    <b>上</b>
-                    <span>食指向上</span>
-                    <em>上一个观察点</em>
-                  </div>
-                  <div data-gesture-guide="Index_Down">
-                    <b>下</b>
-                    <span>食指向下</span>
-                    <em>下一个观察点</em>
-                  </div>
-                  <div data-gesture-guide="Index_Move">
-                    <b>移</b>
-                    <span>食指左右移动</span>
-                    <em>旋转模型</em>
-                  </div>
-                </div>
               </div>
               <div class="model-loading" id="modelLoading">
                 <strong>正在加载 3D 模型</strong>
@@ -223,6 +223,6 @@
       </section>
     </main>
 
-    <script type="module" src="script.js?v=foil-side-angle-1"></script>
+    <script type="module" src="script.js?v=entry-gesture-rotate-1"></script>
   </body>
 </html>
