@@ -109,6 +109,43 @@ button {
   color: #eef1ed;
 }
 
+.entry-loading {
+  position: absolute;
+  right: 34px;
+  bottom: 32px;
+  z-index: 4;
+  min-width: 230px;
+  padding: 12px 14px;
+  border: 1px solid rgba(238, 242, 238, 0.24);
+  background: rgba(5, 6, 6, 0.72);
+  color: var(--ink);
+  backdrop-filter: blur(12px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.entry-loading strong,
+.entry-loading span {
+  display: block;
+}
+
+.entry-loading strong {
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+
+.entry-loading span {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.entry-loading.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+}
+
 .app {
   position: relative;
   min-height: 100vh;
@@ -1449,6 +1486,13 @@ h1 {
     top: 16px;
     width: calc(100% - 36px);
     min-height: 184px;
+  }
+
+  .entry-loading {
+    left: 18px;
+    right: 18px;
+    bottom: 18px;
+    min-width: 0;
   }
 
   .app[data-entry="closed"] .gesture-panel {

@@ -7,6 +7,7 @@ const entryScreen = document.querySelector("#entryScreen");
 const entryCanvas = document.querySelector("#entryCanvas");
 const entryGestureButton = document.querySelector("#entryGestureButton");
 const entryGestureStatus = document.querySelector("#entryGestureStatus");
+const entryLoading = document.querySelector("#entryLoading");
 const modelStage = document.querySelector("#modelStage");
 const canvas = document.querySelector("#relicCanvas");
 const modelPreview = document.querySelector("#modelPreview");
@@ -117,6 +118,7 @@ const VISION_VERSION = "0.10.35";
 const GESTURE_MODEL_URL =
   "https://storage.googleapis.com/mediapipe-tasks/gesture_recognizer/gesture_recognizer.task";
 const SFX_BASE_URL = "https://raw.githubusercontent.com/v-oneehnilo/MIE/gh-pages/assets/sfx/";
+const BGM_URL = "assets/sfx/jade-hall.mp3";
 const ENTRY_LEAF_SCALE = 0.78;
 const ENTRY_MAX_LOAD_ATTEMPTS = 3;
 const MODEL_MAX_LOAD_ATTEMPTS = 3;
@@ -132,8 +134,6 @@ let entryCamera;
 let entryParticleRoot;
 let entryLeafRoot;
 let entrySelectedLeaf;
-let entryFallbackTexture;
-let entryFallbackActive = false;
 let entryClock = new THREE.Clock();
 const entryLeafObjects = [];
 const entryRaycaster = new THREE.Raycaster();
@@ -146,6 +146,8 @@ let scanRoot;
 let flowRoot;
 const overlayVideos = new Map();
 const sceneAudios = new Map();
+let bgmAudio;
+let bgmTargetVolume = 0.42;
 let resetTimer = 0;
 const activePointers = new Map();
 let isDragging = false;
@@ -173,6 +175,7 @@ let lastIndexMoveAt = 0;
 let entryFistPrimed = false;
 let entryActive = true;
 let reportQueued = false;
+let reportShown = false;
 
 function syncLineOverlayFacing() {
   if (!lineOverlayRoot || !modelPivot) return;
@@ -193,7 +196,7 @@ function updateProgress() {
     button.querySelector("em").textContent = done ? "已观察" : "未观察";
   });
 
-  if (count === total) queueReport();
+  if (count === total && !reportShown) queueReport();
 }
 
 function setTarget(rotation, zoom = 1) {
@@ -216,6 +219,8 @@ function setPanelState(name, open) {
 
 function enterObservatory(selectedLeaf = null) {
   if (!entryActive) return;
+  ensureBgmPlaying();
+  setBgmVolume(0.14);
   entryActive = false;
   entryScreen.classList.add("is-zooming");
   entrySelectedLeaf = selectedLeaf;
@@ -314,52 +319,12 @@ function getEntryLeafConfigs() {
   ];
 }
 
-function makeEntryFallbackLeaf(config) {
-  if (!entryFallbackTexture) return;
-  const material = new THREE.MeshBasicMaterial({
-    map: entryFallbackTexture,
-    color: 0xcaa21d,
-    transparent: true,
-    opacity: 0.86,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.38), material);
-  mesh.rotation.set(config.rotation[0], config.rotation[1] * 0.35, config.rotation[2]);
-
-  const group = new THREE.Group();
-  group.position.set(config.position[0], config.position[1], config.position[2]);
-  group.scale.setScalar(config.scale * 0.66);
-  group.add(mesh);
-  group.userData.baseY = config.position[1];
-  group.userData.floatSpeed = config.floatSpeed;
-  group.userData.floatPhase = config.floatPhase;
-  group.userData.entryLeaf = true;
-  group.userData.fallbackLeaf = true;
-  entryLeafRoot.add(group);
-  entryLeafObjects.push(group);
-}
-
-function createEntryFallbackLeaves() {
-  if (entryFallbackActive || entryLeafObjects.length) return;
-  entryFallbackActive = true;
-  const loader = new THREE.TextureLoader();
-  loader.load(
-    modelPreview.src,
-    (texture) => {
-      entryFallbackTexture = texture;
-      entryFallbackTexture.colorSpace = THREE.SRGBColorSpace;
-      getEntryLeafConfigs().forEach((config) => makeEntryFallbackLeaf(config));
-      entryGestureStatus.textContent = "入口模型较慢，已显示备用金叶";
-    },
-    undefined,
-    () => {
-      entryGestureStatus.textContent = "入口模型加载较慢，请稍后或直接刷新";
-    },
-  );
-}
-
 async function loadEntryLeaves(attempt = 1) {
+  entryLoading?.classList.remove("is-hidden");
+  const loadingText = entryLoading?.querySelector("span");
+  if (loadingText) {
+    loadingText.textContent = attempt === 1 ? "正在生成入口中的八片建模金叶" : `正在重试入口建模 ${attempt}/${ENTRY_MAX_LOAD_ATTEMPTS}`;
+  }
   if (MeshoptDecoder.ready) {
     await MeshoptDecoder.ready;
   }
@@ -369,19 +334,17 @@ async function loadEntryLeaves(attempt = 1) {
   const modelUrl = attempt === 1 ? canvas.dataset.model : `${canvas.dataset.model}?entryRetry=${attempt}-${Date.now()}`;
 
   loader.load(modelUrl, (gltf) => {
-    if (entryFallbackActive) return;
     configs.forEach((config) => makeEntryLeaf(gltf.scene, config));
+    entryLoading?.classList.add("is-hidden");
+    entryGestureStatus.textContent = "点击金叶或开启手势进入";
   }, undefined, () => {
     if (attempt < ENTRY_MAX_LOAD_ATTEMPTS) {
       window.setTimeout(() => loadEntryLeaves(attempt + 1), 700 * attempt);
       return;
     }
-    createEntryFallbackLeaves();
+    if (loadingText) loadingText.textContent = "入口 3D 建模加载失败，请刷新或检查网络后重试";
+    entryGestureStatus.textContent = "入口建模加载失败，请刷新重试";
   });
-
-  window.setTimeout(() => {
-    if (!entryLeafObjects.length) createEntryFallbackLeaves();
-  }, attempt === 1 ? 3500 : 5200);
 }
 
 function initEntryRenderer() {
@@ -547,7 +510,7 @@ function getIndexDirection(landmarks) {
 }
 
 function queueReport() {
-  if (reportQueued) return;
+  if (reportQueued || reportShown) return;
   reportQueued = true;
   window.clearTimeout(resetTimer);
   resetTimer = window.setTimeout(() => {
@@ -841,6 +804,29 @@ function setupSceneAudio() {
   });
 }
 
+function setupBgmAudio() {
+  bgmAudio = new Audio(BGM_URL);
+  bgmAudio.loop = true;
+  bgmAudio.preload = "auto";
+  bgmAudio.volume = bgmTargetVolume;
+  ensureBgmPlaying();
+}
+
+function ensureBgmPlaying() {
+  if (!bgmAudio) return;
+  if (!bgmAudio.paused) return;
+  const playPromise = bgmAudio.play();
+  if (playPromise) {
+    playPromise.catch(() => {});
+  }
+}
+
+function setBgmVolume(volume) {
+  bgmTargetVolume = volume;
+  if (!bgmAudio) return;
+  bgmAudio.volume = volume;
+}
+
 function stopSceneAudio(except = "") {
   sceneAudios.forEach((audio, key) => {
     if (key === except) return;
@@ -874,6 +860,7 @@ function playSceneAudio(name) {
 }
 
 function showReport() {
+  reportShown = true;
   reportGrid.innerHTML = Object.entries(scenes)
     .map(
       ([key, item]) => `
@@ -1576,15 +1563,20 @@ function animate() {
 }
 
 buttons.forEach((button) => {
-  button.addEventListener("click", () => playScene(button.dataset.key));
+  button.addEventListener("click", () => {
+    ensureBgmPlaying();
+    playScene(button.dataset.key);
+  });
 });
 
 entryCanvas.addEventListener("click", (event) => {
+  ensureBgmPlaying();
   const leaf = pickEntryLeaf(event);
   if (leaf) enterObservatory(leaf);
 });
 
 entryGestureButton.addEventListener("click", () => {
+  ensureBgmPlaying();
   if (gestureRunning || gestureStream) {
     stopGestureControl();
     return;
@@ -1594,6 +1586,7 @@ entryGestureButton.addEventListener("click", () => {
 
 window.addEventListener("keydown", (event) => {
   if (event.repeat) return;
+  ensureBgmPlaying();
   playScene(event.key);
 });
 
@@ -1675,6 +1668,7 @@ knowledgeToggle.addEventListener("click", () => {
   setPanelState("knowledge", app.dataset.knowledge === "closed");
 });
 gestureToggle.addEventListener("click", () => {
+  ensureBgmPlaying();
   if (gestureRunning || gestureStream) {
     stopGestureControl();
     return;
@@ -1685,10 +1679,12 @@ window.addEventListener("resize", () => {
   resizeRenderer();
   resizeEntryRenderer();
 });
+window.addEventListener("pointerdown", ensureBgmPlaying, { once: true });
 
 initEntryRenderer();
 initRenderer();
 setupSceneAudio();
+setupBgmAudio();
 setIdle();
 updateProgress();
 setPanelState("inspector", false);

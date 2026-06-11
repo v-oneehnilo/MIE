@@ -16,7 +16,8 @@
     <link rel="preload" href="https://raw.githubusercontent.com/v-oneehnilo/MIE/gh-pages/assets/sfx/relief-hammer.mp3" as="audio" type="audio/mpeg" />
     <link rel="preload" href="https://raw.githubusercontent.com/v-oneehnilo/MIE/gh-pages/assets/sfx/ram-sheep.mp3" as="audio" type="audio/mpeg" />
     <link rel="preload" href="https://raw.githubusercontent.com/v-oneehnilo/MIE/gh-pages/assets/sfx/symmetry-sheep.mp3" as="audio" type="audio/mpeg" />
-    <link rel="stylesheet" href="styles.css?v=entry-gesture-rotate-1" />
+    <link rel="preload" href="assets/sfx/jade-hall.mp3" as="audio" type="audio/mpeg" />
+    <link rel="stylesheet" href="styles.css?v=entry-bgm-loading-1" />
     <script type="importmap">
       {
         "imports": {
@@ -37,6 +38,10 @@
             <button class="entry-secondary" type="button" id="entryGestureButton">开启手势进入</button>
           </div>
           <span id="entryGestureStatus">手势入口待机</span>
+        </div>
+        <div class="entry-loading" id="entryLoading" aria-live="polite">
+          <strong>3D 金叶加载中</strong>
+          <span>正在生成入口中的八片建模金叶</span>
         </div>
       </section>
       <div class="gesture-panel" id="gesturePanel" aria-hidden="true">
@@ -223,6 +228,6 @@
       </section>
     </main>
 
-    <script type="module" src="script.js?v=entry-gesture-rotate-1"></script>
+    <script type="module" src="script.js?v=entry-bgm-loading-1"></script>
   </body>
 </html>
