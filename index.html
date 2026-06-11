@@ -11,7 +11,7 @@
     <link rel="preload" href="assets/line-overlays/ram.png" as="image" />
     <link rel="preload" href="assets/line-overlays/symmetry.webm" as="video" type="video/webm" />
     <link rel="preload" href="assets/line-overlays/symmetry.png" as="image" />
-    <link rel="stylesheet" href="styles.css?v=entry-cosmic-scale-1" />
+    <link rel="stylesheet" href="styles.css?v=symmetry-ultraslow-five-1" />
     <script type="importmap">
       {
         "imports": {
@@ -42,7 +42,7 @@
             <button class="gesture-toggle topbar-gesture" type="button" id="gestureToggle">开启摄像头手势</button>
           </div>
           <div class="progress">
-            <span id="progressText">已观察 0/6</span>
+            <span id="progressText">已观察 0/5</span>
             <div class="progress-track" aria-hidden="true">
               <span id="progressFill"></span>
             </div>
@@ -94,7 +94,6 @@
                 <span style="--x: 84%; --y: 57%"></span>
                 <i style="--x: 23%; --y: 28%">杏形边界 / edge</i>
                 <i style="--x: 62%; --y: 22%">锤鍱弧纹 / relief</i>
-                <i style="--x: 18%; --y: 74%">缝缀孔位 / stitch</i>
                 <i style="--x: 69%; --y: 69%">羊头纹面 / motif</i>
               </div>
               <div class="hud-label hud-top" id="hudTop">SCAN FIELD / SURFACE RELIEF</div>
@@ -137,7 +136,7 @@
 
             <div class="annotation annotation-a">
               <span></span>
-              <p id="annotationLabel">拖动金叶可轻微旋转，按 1-6 进入观察镜头</p>
+              <p id="annotationLabel">拖动金叶可轻微旋转，按 1-5 进入观察镜头</p>
             </div>
           </section>
 
@@ -145,7 +144,7 @@
             <div class="scene-card">
               <p class="scene-kicker" id="sceneKicker">OBSERVATION DESK</p>
               <h2 id="sceneTitle">白底 3D 金叶观察台</h2>
-              <p id="sceneText">选择一个观察点，查看金叶的形状、材质、工艺、纹样、结构和用途。</p>
+              <p id="sceneText">选择一个观察点，查看金叶的形状、材质、工艺、纹样和结构。</p>
             </div>
 
             <div class="detail-card">
@@ -154,7 +153,7 @@
               <span id="detailTranslate">当前为待观察状态，模型可拖动旋转。</span>
             </div>
 
-            <nav class="controls" aria-label="六个观察点">
+            <nav class="controls" aria-label="五个观察点">
               <button type="button" data-key="1" class="has-thumb">
                 <span>1</span>
                 <strong>杏形轮廓</strong>
@@ -178,11 +177,6 @@
               <button type="button" data-key="5">
                 <span>5</span>
                 <strong>双羊相背</strong>
-                <em>未观察</em>
-              </button>
-              <button type="button" data-key="6">
-                <span>6</span>
-                <strong>缝缀小孔</strong>
                 <em>未观察</em>
               </button>
             </nav>
@@ -216,14 +210,14 @@
       <section class="report" aria-label="观察报告" aria-hidden="true">
         <div class="report-panel">
           <p class="eyebrow">OBSERVATION REPORT</p>
-          <h2>六个文物特征已完成观察</h2>
-          <p class="report-summary">杏形、金箔、锤鍱、羊纹、对称、缝缀共同构成这件金叶的视觉与功能特征。</p>
+          <h2>五个文物特征已完成观察</h2>
+          <p class="report-summary">杏形、金箔、锤鍱、羊纹与对称共同构成这件金叶的视觉结构特征。</p>
           <div class="report-grid" id="reportGrid"></div>
           <button class="reset-button" type="button" id="resetButton">重新观察</button>
         </div>
       </section>
     </main>
 
-    <script type="module" src="script.js?v=entry-cosmic-scale-1"></script>
+    <script type="module" src="script.js?v=symmetry-ultraslow-five-1"></script>
   </body>
 </html>

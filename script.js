@@ -104,19 +104,6 @@ const scenes = {
     rotation: [-0.04, 0, 0],
     zoom: 1,
   },
-  6: {
-    id: "stitch",
-    kicker: "KEY 6 / USE",
-    title: "缝缀小孔",
-    text: "模型略微倾斜，查看孔洞和边缘位置。",
-    feature: "使用特征",
-    translate: "孔洞和边缘位置提示其原本可能用于缝缀固定。",
-    annotation: "小孔不是装饰，而是缝缀功能的证据",
-    code: "USE-06",
-    hud: "孔位被作为功能节点标出。它们联系到金饰原缀于丝巾之上的保存信息，而不是纯装饰点。",
-    rotation: [-0.1, -0.42, 0.02],
-    zoom: 1.04,
-  },
 };
 
 const observed = new Set();
@@ -184,8 +171,9 @@ function syncLineOverlayFacing() {
 
 function updateProgress() {
   const count = observed.size;
-  progressText.textContent = `已观察 ${count}/6`;
-  progressFill.style.width = `${(count / 6) * 100}%`;
+  const total = buttons.length;
+  progressText.textContent = `已观察 ${count}/${total}`;
+  progressFill.style.width = `${(count / total) * 100}%`;
 
   buttons.forEach((button) => {
     const done = observed.has(button.dataset.key);
@@ -193,7 +181,7 @@ function updateProgress() {
     button.querySelector("em").textContent = done ? "已观察" : "未观察";
   });
 
-  if (count === 6) {
+  if (count === total) {
     window.clearTimeout(resetTimer);
     resetTimer = window.setTimeout(showReport, 900);
   }
@@ -421,7 +409,8 @@ function beginTwoFingerGesture() {
 function moveToScene(offset) {
   const activeButton = buttons.find((button) => button.classList.contains("is-active"));
   const current = activeButton ? Number(activeButton.dataset.key) : 0;
-  const next = ((current + offset + 5) % 6) + 1;
+  const total = buttons.length;
+  const next = ((current + offset + total - 1) % total) + 1;
   playScene(String(next));
 }
 
@@ -727,10 +716,10 @@ function setIdle() {
   });
   sceneKicker.textContent = "OBSERVATION DESK";
   sceneTitle.textContent = "Tripo 真实 3D 金叶观察台";
-  sceneText.textContent = "选择一个观察点，查看金叶的形状、材质、工艺、纹样、结构和用途。";
+  sceneText.textContent = "选择一个观察点，查看金叶的形状、材质、工艺、纹样和结构。";
   detailFeature.textContent = "完整金叶";
   detailTranslate.textContent = "当前加载的是 Tripo 生成的 GLB 模型，可拖动旋转。";
-  annotationLabel.textContent = "拖动模型可自由旋转，按 1-6 进入观察镜头";
+  annotationLabel.textContent = "拖动模型可自由旋转，按 1-5 进入观察镜头";
   buttons.forEach((button) => button.classList.remove("is-active"));
   setTarget([-0.08, 0.16, 0], 1);
 }
@@ -1106,7 +1095,7 @@ function createLineOverlays() {
       type: "video",
       whiteMask: true,
       cleanMask: true,
-      playbackRate: 0.25,
+      playbackRate: 0.1,
       sourceWidth: 1920,
       sourceHeight: 1080,
       sampleRadius: 2,
@@ -1288,16 +1277,6 @@ function createFeatureAnnotations() {
   addMirroredTube(symmetry, [[-0.72, -0.58], [-0.88, -0.82], [-0.78, -1.04], [-0.54, -0.92], [-0.62, -0.58]], 0.004);
   addMirroredTube(symmetry, [[-0.28, -0.72], [-0.32, -1.12], [-0.36, -1.58]], 0.004);
 
-  const stitch = makeLineGroup("stitch");
-  [
-    [-0.18, 1.68], [0.18, 1.68], [-1.48, -0.12], [1.48, -0.12], [-1.42, -0.45],
-    [1.42, -0.45], [-0.18, -1.62], [0.18, -1.62],
-  ].forEach(([x, y]) => addRing(stitch, x, y, 0.043));
-  addTube(stitch, [[-0.18, 1.68], [-0.78, 0.94], [-1.48, -0.12]], 0.0028);
-  addTube(stitch, [[0.18, 1.68], [0.78, 0.94], [1.48, -0.12]], 0.0028);
-  addTube(stitch, [[-1.42, -0.45], [-0.86, -1.18], [-0.18, -1.62]], 0.0028);
-  addTube(stitch, [[1.42, -0.45], [0.86, -1.18], [0.18, -1.62]], 0.0028);
-
   setAnnotation("none");
 }
 
@@ -1366,7 +1345,6 @@ function createFlowField() {
   addFlow("relief", [[-1.18, 0.68, 0.69], [-0.7, 0.35, 0.76], [-0.22, 0.12, 0.76], [0.22, 0.12, 0.76], [0.7, 0.35, 0.76], [1.18, 0.68, 0.69]], 0xd08a34);
   addFlow("ram", [[-0.72, 1.36, 0.74], [-0.32, 1.15, 0.8], [0, 0.92, 0.82], [0.32, 1.15, 0.8], [0.72, 1.36, 0.74]], 0xd08a34);
   addFlow("symmetry", [[0, 1.72, 0.75], [0, 0.8, 0.8], [0, -0.15, 0.78], [0, -1.66, 0.7]], 0xd08a34);
-  addFlow("stitch", [[-0.18, 1.68, 0.72], [-1.48, -0.12, 0.68], [-0.18, -1.62, 0.69], [0.18, -1.62, 0.69], [1.48, -0.12, 0.68], [0.18, 1.68, 0.72]], 0xd08a34);
 }
 
 function resizeRenderer() {
