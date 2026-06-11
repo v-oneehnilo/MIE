@@ -822,10 +822,12 @@ function showReport() {
   app.dataset.report = "open";
 }
 
-function resetObservation() {
-  observed.clear();
-  updateProgress();
-  setIdle();
+function openKnowledgeFromReport() {
+  app.dataset.report = "closed";
+  setPanelState("knowledge", true);
+  window.setTimeout(() => {
+    document.querySelector("#knowledgePanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 80);
 }
 
 function initRenderer() {
@@ -1386,33 +1388,60 @@ function createScanField() {
   const random = seededRandom(314159);
   const vertices = [];
   const colors = [];
+  const seeds = [];
   const color = new THREE.Color();
 
-  for (let i = 0; i < 380; i += 1) {
-    const x = (random() - 0.5) * 3.25;
-    const y = (random() - 0.5) * 3.45;
+  for (let i = 0; i < 520; i += 1) {
+    const x = (random() - 0.5) * 3.55;
+    const y = (random() - 0.5) * 3.2;
     const edgeFade = Math.max(Math.abs(x) / 1.7, Math.abs(y) / 1.78);
     if (edgeFade > 1.08) continue;
-    const z = 0.68 + random() * 0.18;
+    const z = 0.68 + random() * 0.16;
     vertices.push(x, y, z);
-    const tone = 0.65 + random() * 0.35;
-    color.setRGB(tone, tone, tone);
+    seeds.push(random() * Math.PI * 2, 0.28 + random() * 0.56, random());
+    const tone = 0.52 + random() * 0.34;
+    color.setRGB(tone * 0.92, tone, tone * 0.88);
     colors.push(color.r, color.g, color.b);
   }
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute("basePosition", new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute("windSeed", new THREE.Float32BufferAttribute(seeds, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   const material = new THREE.PointsMaterial({
-    size: 0.014,
+    size: 0.011,
     vertexColors: true,
     transparent: true,
-    opacity: 1,
+    opacity: 0.82,
     depthTest: false,
   });
   const points = new THREE.Points(geometry, material);
+  points.userData.kind = "silkWind";
   points.renderOrder = 20;
   scanRoot.add(points);
+}
+
+function updateSilkWind(elapsed) {
+  if (!scanRoot) return;
+  scanRoot.children.forEach((child) => {
+    if (child.userData.kind !== "silkWind") return;
+    const positions = child.geometry.getAttribute("position");
+    const bases = child.geometry.getAttribute("basePosition");
+    const seeds = child.geometry.getAttribute("windSeed");
+    for (let i = 0; i < positions.count; i += 1) {
+      const phase = seeds.getX(i);
+      const speed = seeds.getY(i);
+      const layer = seeds.getZ(i);
+      const baseX = bases.getX(i);
+      const baseY = bases.getY(i);
+      const drift = ((elapsed * speed * 0.28 + layer) % 1) * 0.42;
+      const wave = Math.sin(elapsed * 1.4 + phase + baseX * 2.6) * 0.035;
+      positions.setXYZ(i, baseX + drift - 0.21, baseY + wave, bases.getZ(i));
+    }
+    positions.needsUpdate = true;
+    child.rotation.z = Math.sin(elapsed * 0.18) * 0.018;
+  });
 }
 
 function addFlow(name, coords, color = 0xc77a2a) {
@@ -1475,6 +1504,7 @@ function animate() {
     });
   }
 
+  updateSilkWind(elapsed);
   renderer.render(scene, camera);
 }
 
@@ -1570,7 +1600,7 @@ modelStage.addEventListener("pointercancel", () => {
   gestureHadMultiplePointers = false;
 });
 
-resetButton.addEventListener("click", resetObservation);
+resetButton.addEventListener("click", openKnowledgeFromReport);
 inspectorToggle.addEventListener("click", () => {
   setPanelState("inspector", app.dataset.inspector === "closed");
 });

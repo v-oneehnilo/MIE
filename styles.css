@@ -265,8 +265,28 @@ h1 {
     #070808;
 }
 
+.viewer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      103deg,
+      transparent 0 18px,
+      rgba(216, 222, 210, 0.035) 19px 20px,
+      transparent 21px 38px
+    ),
+    radial-gradient(ellipse at 48% 56%, rgba(173, 161, 104, 0.055), transparent 42%);
+  mix-blend-mode: screen;
+  opacity: 0.7;
+  animation: silkWindDrift 9s linear infinite;
+}
+
 .axis-label {
   position: absolute;
+  z-index: 5;
   color: rgba(226, 230, 226, 0.58);
   font-size: 12px;
   font-weight: 700;
@@ -412,8 +432,8 @@ h1 {
   border-radius: 50%;
   background: rgba(245, 248, 245, 1);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 1),
-    0 0 14px rgba(255, 255, 255, 0.72);
+    0 0 0 1px rgba(255, 255, 255, 0.92),
+    0 0 10px rgba(255, 255, 255, 0.45);
 }
 
 .scan-layer i {
@@ -1188,6 +1208,16 @@ h1 {
 @keyframes drawLine {
   to {
     stroke-dashoffset: 0;
+  }
+}
+
+@keyframes silkWindDrift {
+  from {
+    background-position: 0 0, center;
+  }
+
+  to {
+    background-position: 180px 54px, center;
   }
 }
 
