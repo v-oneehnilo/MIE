@@ -48,6 +48,7 @@ const scenes = {
     translate: "由八块杏形金薄片组成，轮廓信息对应金片单元的边界。",
     annotation: "正面观察：查看整体杏形和浮雕分布",
     code: "FORM-01",
+    sfx: "outline",
     hud: "外缘闭合曲线标记杏形金薄片边界。该类金片原缀于南越王玉衣面罩丝巾之上，边界用于理解其组合方式。",
     rotation: [-0.06, 0, 0],
     zoom: 0.94,
@@ -61,6 +62,7 @@ const scenes = {
     translate: "金片为薄金属片，侧缘显示金箔薄片与浮雕起伏的差异。",
     annotation: "斜侧观察：外轮廓线稿贴近模型表面",
     code: "MAT-02",
+    sfx: "foil",
     hud: "侧缘线追踪金箔厚度。丝巾已朽烂而金饰保存，使薄片材质成为判断佩缀方式的重要依据。",
     rotation: [-0.05, 0.38, 0],
     zoom: 0.96,
@@ -74,6 +76,7 @@ const scenes = {
     translate: "凸起线条对应锤鍱工艺形成的浮雕高差。",
     annotation: "斜光下查看浮雕高差",
     code: "CRAFT-03",
+    sfx: "relief",
     hud: "细框锁定锤鍱形成的弧形肋纹。线条不是装饰轮廓，而是在读取金片表面的敲压痕迹。",
     rotation: [-0.32, 0.34, -0.04],
     zoom: 1.08,
@@ -87,6 +90,7 @@ const scenes = {
     translate: "装饰图案为两个尖角羊头纹，羊头纹饰两两相背。",
     annotation: "特写观察：羊头纹是模型主体",
     code: "MOTIF-04",
+    sfx: "ram",
     hud: "顶部细线标注尖角羊头纹。尖角、眼窝与鼻梁构成识别点，并与草原文化纹饰发生联系。",
     rotation: [-0.18, -0.12, 0],
     zoom: 1.18,
@@ -100,6 +104,7 @@ const scenes = {
     translate: "中轴组织左右两组羊头，使双羊相背的结构变得清晰。",
     annotation: "沿中轴观察，左右纹样形成稳定秩序",
     code: "STRUCT-05",
+    sfx: "symmetry",
     hud: "中轴线将左右浮雕分为相背的两组羊头。对称关系提示金片图案并非单个兽面，而是双羊结构。",
     rotation: [-0.04, 0, 0],
     zoom: 1,
@@ -136,6 +141,7 @@ let lineOverlayRoot;
 let scanRoot;
 let flowRoot;
 const overlayVideos = new Map();
+const sceneAudios = new Map();
 let resetTimer = 0;
 const activePointers = new Map();
 let isDragging = false;
@@ -708,6 +714,7 @@ function stopGestureControl() {
 function setIdle() {
   app.dataset.scene = "idle";
   app.dataset.report = "closed";
+  stopSceneAudio();
   setAnnotation("none");
   updateHud({
     id: "idle",
@@ -732,6 +739,7 @@ function playScene(key) {
   window.clearTimeout(resetTimer);
   app.dataset.report = "closed";
   app.dataset.scene = item.id;
+  playSceneAudio(item.sfx);
   setAnnotation(item.id);
   updateHud(item);
   observed.add(key);
@@ -747,6 +755,55 @@ function playScene(key) {
     button.classList.toggle("is-active", button.dataset.key === key);
   });
   setTarget(item.rotation, item.zoom);
+}
+
+function setupSceneAudio() {
+  const files = {
+    outline: "outline-shimmer.mp3",
+    foil: "foil-shimmer.mp3",
+    relief: "relief-hammer.mp3",
+    ram: "ram-sheep.mp3",
+    symmetry: "symmetry-sheep.mp3",
+  };
+
+  Object.entries(files).forEach(([key, file]) => {
+    const audio = new Audio(`assets/sfx/${file}`);
+    audio.preload = "auto";
+    audio.volume = key === "relief" ? 0.62 : 0.72;
+    sceneAudios.set(key, audio);
+  });
+}
+
+function stopSceneAudio(except = "") {
+  sceneAudios.forEach((audio, key) => {
+    if (key === except) return;
+    audio.pause();
+    try {
+      audio.currentTime = 0;
+    } catch {
+      // Some browsers delay seeking until metadata is available.
+    }
+  });
+}
+
+function playSceneAudio(name) {
+  if (!name) {
+    stopSceneAudio();
+    return;
+  }
+  const audio = sceneAudios.get(name);
+  stopSceneAudio(name);
+  if (!audio) return;
+  audio.pause();
+  try {
+    audio.currentTime = 0;
+  } catch {
+    // Some browsers delay seeking until metadata is available.
+  }
+  const playPromise = audio.play();
+  if (playPromise) {
+    playPromise.catch(() => {});
+  }
 }
 
 function showReport() {
@@ -936,6 +993,10 @@ function setAnnotation(name) {
     const activeName = name === "foil" ? "outline" : name;
     lineOverlayRoot.children.forEach((child) => {
       child.visible = child.name === activeName;
+      if (child.visible && (child.name === "outline" || child.name === "foil")) {
+        child.userData.revealStart = performance.now();
+        if (child.material) child.material.opacity = 0;
+      }
     });
     overlayVideos.forEach((video, key) => {
       if (key === activeName) {
@@ -1067,6 +1128,8 @@ function createImageOverlay(loader, overlay, file, assetPrefix) {
     const material = createOverlayMaterial(texture, overlay);
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(overlay.width, overlay.height), material);
     mesh.name = overlay.name;
+    mesh.userData.baseOpacity = overlay.opacity;
+    mesh.userData.revealStart = 0;
     mesh.position.set(...overlay.position);
     mesh.renderOrder = 55;
     const activeName = app.dataset.scene === "foil" ? "outline" : app.dataset.scene;
@@ -1401,6 +1464,16 @@ function animate() {
     syncLineOverlayFacing();
   }
 
+  if (lineOverlayRoot) {
+    lineOverlayRoot.children.forEach((child) => {
+      if (!child.visible || !(child.name === "outline" || child.name === "foil") || !child.material) return;
+      const startedAt = child.userData.revealStart || performance.now();
+      child.userData.revealStart = startedAt;
+      const progress = THREE.MathUtils.clamp((performance.now() - startedAt) / 1600, 0, 1);
+      child.material.opacity = (child.userData.baseOpacity || 1) * THREE.MathUtils.smoothstep(progress, 0, 1);
+    });
+  }
+
   renderer.render(scene, camera);
 }
 
@@ -1517,6 +1590,7 @@ window.addEventListener("resize", () => {
 
 initEntryRenderer();
 initRenderer();
+setupSceneAudio();
 setIdle();
 updateProgress();
 setPanelState("inspector", false);
