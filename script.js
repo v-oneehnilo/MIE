@@ -1,5 +1,6 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js";
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/libs/meshopt_decoder.module.js";
 
 const app = document.querySelector(".app");
 const entryScreen = document.querySelector("#entryScreen");
@@ -293,6 +294,7 @@ function makeEntryLeaf(source, config) {
 
 function loadEntryLeaves() {
   const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
   const configs = [
     { position: [-3.6, 1.35, -2.4], scale: 1.08, rotation: [-0.12, -0.35, 0.18], floatSpeed: 0.7, floatPhase: 0.2 },
     { position: [-1.35, 2.0, -3.1], scale: 0.88, rotation: [-0.05, 0.18, -0.12], floatSpeed: 0.84, floatPhase: 1.4 },
@@ -869,7 +871,12 @@ async function loadModel(attempt = 1) {
   modelLoading.querySelector("strong").textContent = attempt === 1 ? "正在加载 3D 模型" : `正在重试 3D 模型 ${attempt}/${MODEL_MAX_LOAD_ATTEMPTS}`;
   modelLoadingDetail.textContent = attempt === 1 ? "先显示文物预览，模型加载完成后自动切换" : "网络或解码器响应较慢，正在重新请求模型文件。";
 
+  if (MeshoptDecoder.ready) {
+    await MeshoptDecoder.ready;
+  }
+
   const loader = new GLTFLoader();
+  loader.setMeshoptDecoder(MeshoptDecoder);
   const startedAt = performance.now();
   const modelUrl = attempt === 1 ? canvas.dataset.model : `${canvas.dataset.model}?retry=${attempt}-${Date.now()}`;
 
