@@ -11,7 +11,7 @@
     <link rel="preload" href="assets/line-overlays/ram.png" as="image" />
     <link rel="preload" href="assets/line-overlays/symmetry.webm" as="video" type="video/webm" />
     <link rel="preload" href="assets/line-overlays/symmetry.png" as="image" />
-    <link rel="stylesheet" href="styles.css?v=symmetry-video-slow-1" />
+    <link rel="stylesheet" href="styles.css?v=gesture-topbar-index-1" />
     <script type="importmap">
       {
         "imports": {
@@ -39,6 +39,7 @@
           <div>
             <p class="eyebrow">MIE DIGITAL RELIC OBSERVATORY</p>
             <h1>羊头纹杏形金叶</h1>
+            <button class="gesture-toggle topbar-gesture" type="button" id="gestureToggle">开启摄像头手势</button>
           </div>
           <div class="progress">
             <span id="progressText">已观察 0/6</span>
@@ -111,25 +112,20 @@
                   <span id="gestureStatus">点击开启后使用摄像头识别手势</span>
                 </div>
                 <div class="gesture-guide" aria-label="手势控制说明">
-                  <div data-gesture-guide="Pointing_Up">
-                    <b>食指</b>
-                    <span>食指指向</span>
-                    <em>左右移动选择 1-6</em>
-                  </div>
-                  <div data-gesture-guide="Thumb_Up">
+                  <div data-gesture-guide="Index_Up">
                     <b>上</b>
-                    <span>拇指向上</span>
-                    <em>下一个观察点</em>
-                  </div>
-                  <div data-gesture-guide="Thumb_Down">
-                    <b>下</b>
-                    <span>拇指向下</span>
+                    <span>食指向上</span>
                     <em>上一个观察点</em>
                   </div>
-                  <div data-gesture-guide="Closed_Fist">
-                    <b>拳</b>
-                    <span>握拳</span>
-                    <em>回到完整模型</em>
+                  <div data-gesture-guide="Index_Down">
+                    <b>下</b>
+                    <span>食指向下</span>
+                    <em>下一个观察点</em>
+                  </div>
+                  <div data-gesture-guide="Index_Move">
+                    <b>移</b>
+                    <span>食指左右移动</span>
+                    <em>旋转模型</em>
                   </div>
                 </div>
               </div>
@@ -156,7 +152,6 @@
               <p>观察点</p>
               <strong id="detailFeature">完整金叶</strong>
               <span id="detailTranslate">当前为待观察状态，模型可拖动旋转。</span>
-              <button class="gesture-toggle" type="button" id="gestureToggle">开启摄像头手势</button>
             </div>
 
             <nav class="controls" aria-label="六个观察点">
@@ -229,6 +224,6 @@
       </section>
     </main>
 
-    <script type="module" src="script.js?v=symmetry-video-slow-1"></script>
+    <script type="module" src="script.js?v=gesture-topbar-index-1"></script>
   </body>
 </html>

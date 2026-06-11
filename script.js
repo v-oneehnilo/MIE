@@ -169,6 +169,8 @@ let gestureLoopId = 0;
 let lastGestureVideoTime = -1;
 let lastGestureActionAt = 0;
 let lastGestureLabel = "";
+let lastIndexX = null;
+let lastIndexMoveAt = 0;
 let entryFistPrimed = false;
 let entryActive = true;
 
@@ -450,14 +452,35 @@ function getHandCenter(landmarks) {
   };
 }
 
-function sceneFromHandPosition(landmarks) {
-  const center = getHandCenter(landmarks);
-  if (!center) return null;
-  const mirroredX = 1 - center.x;
-  return String(THREE.MathUtils.clamp(Math.floor(mirroredX * 6) + 1, 1, 6));
+function getIndexDirection(landmarks) {
+  if (!landmarks?.[5] || !landmarks?.[8]) return null;
+  const base = landmarks[5];
+  const tip = landmarks[8];
+  const dx = tip.x - base.x;
+  const dy = tip.y - base.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 0.08) return null;
+  if (Math.abs(dy) < 0.11 || Math.abs(dy) < Math.abs(dx) * 0.62) return "move";
+  return dy < 0 ? "up" : "down";
 }
 
-function drawGestureOverlay(landmarks, selectedKey) {
+function rotateModelFromIndex(landmarks, now) {
+  if (!landmarks?.[8]) return;
+  const mirroredX = 1 - landmarks[8].x;
+  if (lastIndexX === null) {
+    lastIndexX = mirroredX;
+    lastIndexMoveAt = now;
+    return;
+  }
+  const delta = mirroredX - lastIndexX;
+  lastIndexX = mirroredX;
+  if (now - lastIndexMoveAt < 32 || Math.abs(delta) < 0.008) return;
+  lastIndexMoveAt = now;
+  targetRotation.y += THREE.MathUtils.clamp(delta * 2.2, -0.045, 0.045);
+  targetRotation.x = THREE.MathUtils.clamp(targetRotation.x, -0.9, 0.9);
+}
+
+function drawGestureOverlay(landmarks, mode) {
   const context = gestureCanvas.getContext("2d");
   const width = gestureCanvas.width;
   const height = gestureCanvas.height;
@@ -465,13 +488,12 @@ function drawGestureOverlay(landmarks, selectedKey) {
 
   context.strokeStyle = "rgba(238, 242, 238, 0.32)";
   context.lineWidth = 1;
-  for (let i = 1; i < 6; i += 1) {
-    const x = (i / 6) * width;
-    context.beginPath();
-    context.moveTo(x, 0);
-    context.lineTo(x, height);
-    context.stroke();
-  }
+  context.beginPath();
+  context.moveTo(width / 2, 0);
+  context.lineTo(width / 2, height);
+  context.moveTo(0, height / 2);
+  context.lineTo(width, height / 2);
+  context.stroke();
 
   if (!landmarks?.length) return;
   context.fillStyle = "rgba(214, 75, 70, 0.96)";
@@ -481,9 +503,10 @@ function drawGestureOverlay(landmarks, selectedKey) {
     context.fill();
   });
 
-  if (!selectedKey) return;
+  if (!mode) return;
   context.fillStyle = "rgba(214, 75, 70, 0.28)";
-  context.fillRect(((Number(selectedKey) - 1) / 6) * width, 0, width / 6, height);
+  if (mode === "up") context.fillRect(0, 0, width, height / 2);
+  if (mode === "down") context.fillRect(0, height / 2, width, height / 2);
 }
 
 function handleGestureResult(result, now) {
@@ -491,7 +514,6 @@ function handleGestureResult(result, now) {
   const landmarks = result.landmarks?.[0];
   const label = gesture?.categoryName || "None";
   const score = gesture?.score || 0;
-  let selectedKey = null;
 
   if (entryActive) {
     if (!gesture || score < 0.62) {
@@ -516,33 +538,48 @@ function handleGestureResult(result, now) {
     drawGestureOverlay(landmarks, null);
     setActiveGestureGuide("");
     setGestureReadout("识别中", "把手放入画面中央");
+    lastIndexX = null;
     return;
   }
 
   if (label === "Pointing_Up") {
-    setActiveGestureGuide(label);
-    selectedKey = sceneFromHandPosition(landmarks);
-    drawGestureOverlay(landmarks, selectedKey);
-    setGestureReadout("指向选择", `当前指向观察点 ${selectedKey}`);
-    if (selectedKey && canRunGestureAction(`${label}-${selectedKey}`, now)) {
-      playScene(selectedKey);
+    const indexDirection = getIndexDirection(landmarks);
+    drawGestureOverlay(landmarks, indexDirection);
+
+    if (indexDirection === "up") {
+      lastIndexX = null;
+      setActiveGestureGuide("Index_Up");
+      setGestureReadout("食指向上", "切换到上一个观察点");
+      if (canRunGestureAction("Index_Up", now)) moveToScene(-1);
+      return;
     }
+
+    if (indexDirection === "down") {
+      lastIndexX = null;
+      setActiveGestureGuide("Index_Down");
+      setGestureReadout("食指向下", "切换到下一个观察点");
+      if (canRunGestureAction("Index_Down", now)) moveToScene(1);
+      return;
+    }
+
+    setActiveGestureGuide("Index_Move");
+    rotateModelFromIndex(landmarks, now);
+    setGestureReadout("食指旋转", "左右移动食指旋转模型");
     return;
   }
 
   drawGestureOverlay(landmarks, null);
+  lastIndexX = null;
 
   if (label === "Thumb_Up") {
-    setActiveGestureGuide(label);
-    setGestureReadout("下一项", "拇指向上切换到下一个观察点");
-    if (canRunGestureAction(label, now)) moveToScene(1);
+    setActiveGestureGuide("");
+    setGestureReadout("请用食指", "食指向上/向下切换，左右移动旋转");
     return;
   }
 
   if (label === "Thumb_Down") {
-    setActiveGestureGuide(label);
-    setGestureReadout("上一项", "拇指向下切换到上一个观察点");
-    if (canRunGestureAction(label, now)) moveToScene(-1);
+    setActiveGestureGuide("");
+    setGestureReadout("请用食指", "食指向上/向下切换，左右移动旋转");
     return;
   }
 
@@ -554,7 +591,7 @@ function handleGestureResult(result, now) {
   }
 
   setActiveGestureGuide("");
-  setGestureReadout(label, "保持指向、点赞、倒赞或握拳可控制页面");
+  setGestureReadout(label, "食指向上/向下切换，左右移动旋转");
 }
 
 async function loadGestureRecognizer() {
@@ -610,7 +647,7 @@ async function startGestureControl() {
     gestureCanvas.width = gestureVideo.videoWidth || 640;
     gestureCanvas.height = gestureVideo.videoHeight || 480;
     gestureRunning = true;
-    setGestureReadout("手势已开启", "用手指横向选择 1-6");
+    setGestureReadout("手势已开启", "食指向上/向下切换，左右移动旋转");
     entryGestureStatus.textContent = "请握拳，然后松开手指进入";
 
     const detect = () => {
@@ -653,6 +690,7 @@ function stopGestureControl() {
   entryFistPrimed = false;
   lastGestureLabel = "";
   lastGestureActionAt = 0;
+  lastIndexX = null;
   setActiveGestureGuide("");
   const context = gestureCanvas.getContext("2d");
   context?.clearRect(0, 0, gestureCanvas.width, gestureCanvas.height);

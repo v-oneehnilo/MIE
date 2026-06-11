@@ -173,6 +173,21 @@ h1 {
   cursor: pointer;
 }
 
+.topbar-gesture {
+  width: fit-content;
+  margin-top: 14px;
+  background: transparent;
+  color: #dfe3df;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.topbar-gesture:hover,
+.topbar-gesture:focus-visible {
+  outline: none;
+  border-color: rgba(238, 242, 238, 0.68);
+  background: rgba(238, 242, 238, 0.08);
+}
+
 .panel-toggle {
   min-height: 34px;
   padding: 0 12px;
