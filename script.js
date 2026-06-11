@@ -986,6 +986,7 @@ function createOverlayMaterial(texture, overlay) {
         opacity: { value: overlay.opacity },
         texelSize: { value: new THREE.Vector2(1 / (overlay.sourceWidth || 1920), 1 / (overlay.sourceHeight || 1080)) },
         cleanMask: { value: overlay.cleanMask ? 1 : 0 },
+        darkLineMask: { value: overlay.darkLineMask ? 1 : 0 },
         maskThreshold: { value: overlay.maskThreshold || 0.32 },
         sampleRadius: { value: overlay.sampleRadius || 1 },
       },
@@ -1002,12 +1003,17 @@ function createOverlayMaterial(texture, overlay) {
         uniform float opacity;
         uniform vec2 texelSize;
         uniform float cleanMask;
+        uniform float darkLineMask;
         uniform float maskThreshold;
         uniform float sampleRadius;
         varying vec2 vUv;
 
         float maskAlpha(vec2 uv) {
           vec4 sampleColor = texture2D(map, uv);
+          if (darkLineMask > 0.5) {
+            float colorDistance = length(sampleColor.rgb);
+            return smoothstep(maskThreshold, maskThreshold + 0.055, colorDistance);
+          }
           float luminance = dot(sampleColor.rgb, vec3(0.299, 0.587, 0.114));
           return sampleColor.a > 0.04 ? sampleColor.a : smoothstep(0.62, 0.96, luminance);
         }
@@ -1098,11 +1104,18 @@ function createLineOverlays() {
     },
     {
       name: "ram",
-      file: "ram.png",
-      width: 1.48 * overlayScale,
-      height: 0.82 * overlayScale,
-      position: [0, 1.05, 0.19],
-      opacity: 0.92,
+      file: "ram.webm",
+      fallbackFile: "ram.png",
+      type: "video",
+      whiteMask: true,
+      darkLineMask: true,
+      sourceWidth: 1200,
+      sourceHeight: 1200,
+      maskThreshold: 0.018,
+      width: 2.18 * overlayScale,
+      height: 2.18 * overlayScale,
+      position: [0, 0.62, 0.19],
+      opacity: 1,
     },
     {
       name: "symmetry",
