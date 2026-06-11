@@ -116,6 +116,7 @@ const MODEL_FRONT_OFFSET_Y = -Math.PI / 2;
 const VISION_VERSION = "0.10.35";
 const GESTURE_MODEL_URL =
   "https://storage.googleapis.com/mediapipe-tasks/gesture_recognizer/gesture_recognizer.task";
+const SFX_BASE_URL = "https://raw.githubusercontent.com/v-oneehnilo/MIE/gh-pages/assets/sfx/";
 const ENTRY_LEAF_SCALE = 0.78;
 const MODEL_MAX_LOAD_ATTEMPTS = 3;
 const targetRotation = new THREE.Euler(-0.08, 0.16, 0);
@@ -767,7 +768,7 @@ function setupSceneAudio() {
   };
 
   Object.entries(files).forEach(([key, file]) => {
-    const audio = new Audio(`assets/sfx/${file}`);
+    const audio = new Audio(`${SFX_BASE_URL}${file}`);
     audio.preload = "auto";
     audio.volume = key === "relief" ? 0.62 : 0.72;
     sceneAudios.set(key, audio);
