@@ -41,8 +41,9 @@ button {
   overflow: hidden;
   display: block;
   background:
-    radial-gradient(circle at 62% 40%, rgba(174, 166, 136, 0.11), transparent 30%),
-    radial-gradient(circle at 18% 76%, rgba(118, 126, 130, 0.09), transparent 28%),
+    radial-gradient(ellipse at 56% 48%, rgba(174, 166, 136, 0.1), transparent 38%),
+    radial-gradient(ellipse at 48% 53%, rgba(238, 242, 238, 0.055), transparent 46%),
+    radial-gradient(circle at 18% 76%, rgba(118, 126, 130, 0.045), transparent 28%),
     #020303;
   opacity: 1;
   transform: scale(1);

@@ -124,6 +124,7 @@ const MODEL_FRONT_OFFSET_Y = -Math.PI / 2;
 const VISION_VERSION = "0.10.35";
 const GESTURE_MODEL_URL =
   "https://storage.googleapis.com/mediapipe-tasks/gesture_recognizer/gesture_recognizer.task";
+const ENTRY_LEAF_SCALE = 0.78;
 const targetRotation = new THREE.Euler(-0.08, 0.16, 0);
 const currentRotation = new THREE.Euler(-0.08, 0.16, 0);
 
@@ -235,23 +236,37 @@ function createEntryParticles() {
   const vertices = [];
   const colors = [];
   const color = new THREE.Color();
-  for (let i = 0; i < 1600; i += 1) {
-    const radius = 3.2 + random() * 7.8;
-    const angle = random() * Math.PI * 2;
-    const band = (random() - 0.5) * 2.1;
-    vertices.push(Math.cos(angle) * radius, band + Math.sin(angle * 1.7) * 0.28, Math.sin(angle) * radius - 2.8);
-    const tone = 0.38 + random() * 0.42;
-    color.setRGB(tone, tone, tone * 0.92);
+
+  for (let i = 0; i < 2200; i += 1) {
+    const radius = 1.45 + random() * 7.1;
+    const angle = random() * Math.PI * 2 + radius * 0.34;
+    const ringNoise = (random() - 0.5) * 0.52;
+    const x = Math.cos(angle) * (radius + ringNoise) * 1.08;
+    const y = Math.sin(angle) * (radius + ringNoise) * 0.34 + (random() - 0.5) * 0.28;
+    const z = -2.7 + Math.sin(angle * 1.4) * 0.3 - random() * 2.6;
+    vertices.push(x, y, z);
+    const tone = 0.28 + random() * 0.5;
+    color.setRGB(tone, tone, tone * 0.96);
     colors.push(color.r, color.g, color.b);
   }
+
+  for (let i = 0; i < 360; i += 1) {
+    const radius = 3.6 + random() * 7.2;
+    const angle = random() * Math.PI * 2;
+    vertices.push(Math.cos(angle) * radius, (random() - 0.5) * 4.4, Math.sin(angle) * radius - 4.2);
+    const tone = 0.2 + random() * 0.36;
+    color.setRGB(tone, tone, tone);
+    colors.push(color.r, color.g, color.b);
+  }
+
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   const material = new THREE.PointsMaterial({
-    size: 0.018,
+    size: 0.014,
     vertexColors: true,
     transparent: true,
-    opacity: 0.72,
+    opacity: 0.68,
     depthWrite: false,
   });
   entryParticleRoot = new THREE.Points(geometry, material);
@@ -263,9 +278,10 @@ function makeEntryLeaf(source, config) {
   leaf.traverse((child) => {
     if (!child.isMesh) return;
     child.material = new THREE.MeshStandardMaterial({
-      color: 0xbf9000,
-      metalness: 0.5,
-      roughness: 0.46,
+      color: 0x9a7400,
+      metalness: 0.44,
+      roughness: 0.58,
+      envMapIntensity: 0.28,
     });
   });
 
@@ -273,7 +289,7 @@ function makeEntryLeaf(source, config) {
   const center = box.getCenter(new THREE.Vector3());
   const size = box.getSize(new THREE.Vector3());
   leaf.position.sub(center);
-  leaf.scale.setScalar(config.scale / Math.max(size.x, size.y, size.z));
+  leaf.scale.setScalar((config.scale * ENTRY_LEAF_SCALE) / Math.max(size.x, size.y, size.z));
   leaf.rotation.set(config.rotation[0], MODEL_FRONT_OFFSET_Y + config.rotation[1], config.rotation[2]);
 
   const group = new THREE.Group();
@@ -314,13 +330,13 @@ function initEntryRenderer() {
   entryRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
   entryRenderer.outputColorSpace = THREE.SRGBColorSpace;
   entryRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-  entryRenderer.toneMappingExposure = 0.92;
+  entryRenderer.toneMappingExposure = 0.72;
 
-  entryScene.add(new THREE.HemisphereLight(0xf5f5f2, 0x151515, 1.1));
-  const key = new THREE.DirectionalLight(0xffffff, 2.2);
+  entryScene.add(new THREE.HemisphereLight(0xf5f5f2, 0x101111, 0.72));
+  const key = new THREE.DirectionalLight(0xffffff, 1.34);
   key.position.set(-2.8, 3.2, 4.8);
   entryScene.add(key);
-  const rim = new THREE.DirectionalLight(0xd7d2bd, 1.1);
+  const rim = new THREE.DirectionalLight(0xd7d2bd, 0.58);
   rim.position.set(3.5, -0.8, -2.4);
   entryScene.add(rim);
 
@@ -358,8 +374,11 @@ function pickEntryLeaf(event) {
 function animateEntryScene(elapsed) {
   if (!entryRenderer) return;
   if (entryParticleRoot) {
-    entryParticleRoot.rotation.y = elapsed * 0.018;
-    entryParticleRoot.rotation.z = Math.sin(elapsed * 0.08) * 0.03;
+    entryParticleRoot.rotation.z = elapsed * 0.012;
+    entryParticleRoot.rotation.y = Math.sin(elapsed * 0.07) * 0.08;
+  }
+  if (entryLeafRoot && entryActive) {
+    entryLeafRoot.rotation.z = Math.sin(elapsed * 0.04) * 0.015;
   }
   entryLeafObjects.forEach((leaf, index) => {
     if (leaf === entrySelectedLeaf) {
