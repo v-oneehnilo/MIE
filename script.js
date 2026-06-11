@@ -69,32 +69,32 @@ const scenes = {
     zoom: 1.08,
   },
   3: {
-    id: "relief",
-    kicker: "KEY 3 / CRAFT",
-    title: "锤鍱纹理",
-    text: "斜向光照扫过模型，凸起纹理随光线显影。",
-    feature: "工艺特征",
-    translate: "凸起线条对应锤鍱工艺形成的浮雕高差。",
-    annotation: "斜光下查看浮雕高差",
-    code: "CRAFT-03",
-    sfx: "relief",
-    hud: "细框锁定锤鍱形成的弧形肋纹。线条不是装饰轮廓，而是在读取金片表面的敲压痕迹。",
-    rotation: [-0.32, 0.34, -0.04],
-    zoom: 1.08,
-  },
-  4: {
     id: "ram",
-    kicker: "KEY 4 / MOTIF",
+    kicker: "KEY 3 / MOTIF",
     title: "羊头纹",
     text: "镜头靠近上方羊头纹，观察尖角、眼窝、鼻梁和兽面结构。",
     feature: "纹样特征",
     translate: "装饰图案为两个尖角羊头纹，羊头纹饰两两相背。",
     annotation: "特写观察：羊头纹是模型主体",
-    code: "MOTIF-04",
+    code: "MOTIF-03",
     sfx: "ram",
     hud: "顶部细线标注尖角羊头纹。尖角、眼窝与鼻梁构成识别点，并与草原文化纹饰发生联系。",
     rotation: [-0.18, -0.12, 0],
     zoom: 1.18,
+  },
+  4: {
+    id: "relief",
+    kicker: "KEY 4 / CRAFT",
+    title: "锤鍱纹理",
+    text: "斜向光照扫过模型，凸起纹理随光线显影。",
+    feature: "工艺特征",
+    translate: "凸起线条对应锤鍱工艺形成的浮雕高差。",
+    annotation: "斜光下查看浮雕高差",
+    code: "CRAFT-04",
+    sfx: "relief",
+    hud: "细框锁定锤鍱形成的弧形肋纹。线条不是装饰轮廓，而是在读取金片表面的敲压痕迹。",
+    rotation: [-0.32, 0.34, -0.04],
+    zoom: 1.08,
   },
   5: {
     id: "symmetry",
@@ -148,6 +148,7 @@ const overlayVideos = new Map();
 const sceneAudios = new Map();
 let bgmAudio;
 let bgmTargetVolume = 0.42;
+let bgmFadeId = 0;
 let resetTimer = 0;
 const activePointers = new Map();
 let isDragging = false;
@@ -220,7 +221,7 @@ function setPanelState(name, open) {
 function enterObservatory(selectedLeaf = null) {
   if (!entryActive) return;
   ensureBgmPlaying();
-  setBgmVolume(0.14);
+  fadeBgmTo(0.14, 1800);
   entryActive = false;
   entryScreen.classList.add("is-zooming");
   entrySelectedLeaf = selectedLeaf;
@@ -800,6 +801,7 @@ function setupSceneAudio() {
     const audio = new Audio(`${SFX_BASE_URL}${file}`);
     audio.preload = "auto";
     audio.volume = key === "relief" ? 0.62 : 0.72;
+    audio.playbackRate = key === "relief" ? 0.75 : 1;
     sceneAudios.set(key, audio);
   });
 }
@@ -808,8 +810,9 @@ function setupBgmAudio() {
   bgmAudio = new Audio(BGM_URL);
   bgmAudio.loop = true;
   bgmAudio.preload = "auto";
-  bgmAudio.volume = bgmTargetVolume;
+  bgmAudio.volume = 0;
   ensureBgmPlaying();
+  fadeBgmTo(0.42, 2200);
 }
 
 function ensureBgmPlaying() {
@@ -824,7 +827,25 @@ function ensureBgmPlaying() {
 function setBgmVolume(volume) {
   bgmTargetVolume = volume;
   if (!bgmAudio) return;
+  window.cancelAnimationFrame(bgmFadeId);
   bgmAudio.volume = volume;
+}
+
+function fadeBgmTo(volume, duration = 1200) {
+  bgmTargetVolume = volume;
+  if (!bgmAudio) return;
+  window.cancelAnimationFrame(bgmFadeId);
+  const startVolume = bgmAudio.volume;
+  const startedAt = performance.now();
+  const tick = (now) => {
+    const progress = THREE.MathUtils.clamp((now - startedAt) / duration, 0, 1);
+    const eased = THREE.MathUtils.smoothstep(progress, 0, 1);
+    bgmAudio.volume = THREE.MathUtils.lerp(startVolume, volume, eased);
+    if (progress < 1) {
+      bgmFadeId = window.requestAnimationFrame(tick);
+    }
+  };
+  bgmFadeId = window.requestAnimationFrame(tick);
 }
 
 function stopSceneAudio(except = "") {
