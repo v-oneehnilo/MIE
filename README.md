@@ -1,5 +1,20 @@
-# MIE
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
 
-羊头纹杏形金叶 6 键交互动效原型。
+# Run and deploy your AI Studio app
 
-打开页面后，可以点击按钮或按键盘 `1-6`，查看六个文物特点的动态特写：杏形轮廓、金箔薄片、锤鍱纹理、二尖角羊头纹、双羊相背、缝缀小孔。
+This contains everything you need to run your app locally.
+
+View your app in AI Studio: https://ai.studio/apps/1d035fc9-6e73-4013-918e-89804fc46b92
+
+## Run Locally
+
+**Prerequisites:**  Node.js
+
+
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`
