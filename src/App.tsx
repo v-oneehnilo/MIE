@@ -1,4 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import foilShimmerUrl from '../assets/sfx/foil-shimmer.mp3';
+import jadeHallUrl from '../assets/sfx/jade-hall.mp3';
+import outlineShimmerUrl from '../assets/sfx/outline-shimmer.mp3';
+import ramSheepUrl from '../assets/sfx/ram-sheep.mp3';
+import reliefHammerUrl from '../assets/sfx/relief-hammer.mp3';
+import symmetrySheepUrl from '../assets/sfx/symmetry-sheep.mp3';
 
 interface LeafState {
   x: number;
@@ -132,9 +138,75 @@ interface AmbientMusicController {
   intervalId: number;
 }
 
+type LegacySoundName = 'outline' | 'foil' | 'relief' | 'ram' | 'symmetry' | 'jade';
+
+const LEGACY_SOUND_URLS: Record<LegacySoundName, string> = {
+  outline: outlineShimmerUrl,
+  foil: foilShimmerUrl,
+  relief: reliefHammerUrl,
+  ram: ramSheepUrl,
+  symmetry: symmetrySheepUrl,
+  jade: jadeHallUrl,
+};
+
+let legacySfx: Partial<Record<LegacySoundName, HTMLAudioElement>> = {};
+let globalBgmAudio: HTMLAudioElement | null = null;
+let globalBgmFadeId = 0;
+let globalBgmTargetVolume = 0.26;
+
+const getLegacyAudio = (name: LegacySoundName) => {
+  if (legacySfx[name]) return legacySfx[name]!;
+  const audio = new Audio(LEGACY_SOUND_URLS[name]);
+  audio.preload = 'auto';
+  audio.volume = name === 'jade' ? 0.24 : 0.48;
+  legacySfx[name] = audio;
+  return audio;
+};
+
+const playLegacySound = (name: LegacySoundName) => {
+  try {
+    const audio = getLegacyAudio(name);
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  } catch (err) {
+    console.warn("Legacy sound failed:", err);
+  }
+};
+
+const fadeGlobalBgmTo = (volume: number, duration = 1600, rememberTarget = true) => {
+  if (rememberTarget) globalBgmTargetVolume = volume;
+  if (!globalBgmAudio) return;
+  window.cancelAnimationFrame(globalBgmFadeId);
+  const startVolume = globalBgmAudio.volume;
+  const startedAt = performance.now();
+  const tick = (now: number) => {
+    const progress = Math.min(1, (now - startedAt) / duration);
+    const eased = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+    if (globalBgmAudio) globalBgmAudio.volume = startVolume + (volume - startVolume) * eased;
+    if (progress < 1) globalBgmFadeId = window.requestAnimationFrame(tick);
+  };
+  globalBgmFadeId = window.requestAnimationFrame(tick);
+};
+
+const startGlobalBgm = () => {
+  try {
+    if (!globalBgmAudio) {
+      globalBgmAudio = new Audio(jadeHallUrl);
+      globalBgmAudio.loop = true;
+      globalBgmAudio.preload = 'auto';
+      globalBgmAudio.volume = 0;
+    }
+    globalBgmAudio.play().catch(() => {});
+    fadeGlobalBgmTo(globalBgmTargetVolume, 1800);
+  } catch (err) {
+    console.warn("Global BGM failed:", err);
+  }
+};
+
 // Audio Synthesis Helpers (Pure Web Audio physical modeling of sheep and bronze chime bells)
 const playSheepSound = (pitch = 1.0) => {
   try {
+    playLegacySound('ram');
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) return;
     const ctx = new AudioContextClass();
@@ -259,6 +331,7 @@ const ringAmbientTone = (ctx: AudioContext, destination: AudioNode, freq: number
 
 const startAmbientMusic = () => {
   try {
+    startGlobalBgm();
     if (ambientMusicController) {
       ambientMusicController.ctx.resume();
       return;
@@ -1210,6 +1283,8 @@ export default function App() {
       lightningFlashRef.current = 1.0;
       setLightningFlash(1.0);
       lastStrikeTimeRef.current = performance.now();
+      fadeGlobalBgmTo(0, 2200);
+      playLegacySound('relief');
 
       // Spawn a wave of clouds, speed lines, and wisps
       const w = canvas.width;
@@ -1244,6 +1319,7 @@ export default function App() {
           clickCountRef.current = nextCount;
           setClickCount(nextCount);
           lastClickTimeRef.current = performance.now();
+          playLegacySound(nextCount === 1 ? 'outline' : nextCount === 2 ? 'foil' : 'symmetry');
           if (nextCount === 3) setAmbientMusicMood('journey');
           return; // Prevent clicking on sheep/guides in the same frame
         }
@@ -1382,9 +1458,18 @@ export default function App() {
           const dy = y - (c.y - 20); // click offset center up
           if (Math.sqrt(dx * dx + dy * dy) < 45) {
             c.bouncePhase = Math.PI; // trigger jump bounce
-            if (c.type === 'king') playChimeBellSound(261.63);
-            else if (c.type === 'artisan') playChimeBellSound(329.63);
-            else if (c.type === 'priest') playChimeBellSound(392.00);
+            if (c.type === 'king') {
+              playLegacySound('jade');
+              playChimeBellSound(261.63);
+            }
+            else if (c.type === 'artisan') {
+              playLegacySound('relief');
+              playChimeBellSound(329.63);
+            }
+            else if (c.type === 'priest') {
+              playLegacySound('outline');
+              playChimeBellSound(392.00);
+            }
             else if (c.type === 'shepherd') playSheepSound(1.12);
             return;
           }
@@ -1431,6 +1516,7 @@ export default function App() {
           setReminisceStep(0);
           
           playChimeBellSound(261.63); // Resonant chime
+          playLegacySound('jade');
 
           // Ensure all historical characters are present for the story animations
           const existingTypes = charactersRef.current.map(c => c.type);
@@ -1506,6 +1592,7 @@ export default function App() {
               }
             }
             if (clickedBellIdx !== -1) {
+              playLegacySound(clickedBellIdx % 2 === 0 ? 'foil' : 'symmetry');
               playChimeBellSound(pentatonic[clickedBellIdx]);
               ripplesRef.current.push({
                 x: width * 0.28 + clickedBellIdx * (width * 0.44 / 4),
@@ -1541,6 +1628,8 @@ export default function App() {
             
             const pentatonic = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
             playChimeBellSound(pentatonic[nextStep % pentatonic.length]);
+            if (nextStep === 4) playLegacySound('relief');
+            if (nextStep === 15 || nextStep === 16) playLegacySound('jade');
 
             // Step 17 ("繁华的城池。"): Spawn a crowd of ordinary nameless citizens walking in!
             if (nextStep === 17) {
@@ -1649,6 +1738,7 @@ export default function App() {
           setStoryStage('ritual_interior');
           
           triggerWeatherBurst();
+          playLegacySound('outline');
           
           // Play sheep call!
           playSheepSound(1.0);
@@ -1662,6 +1752,7 @@ export default function App() {
           setStoryStage('ritual_final');
           
           triggerWeatherBurst();
+          playLegacySound('relief');
           
           // Grand chord of complete restoration
           playChimeBellSound(261.63);
@@ -1677,6 +1768,7 @@ export default function App() {
           setStoryStage('curtain');
           setObservatoryOpen(false);
           setAmbientMusicMood('curtain');
+          playLegacySound('jade');
 
           const pentatonic = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
           pentatonic.slice(0, 5).forEach((freq, idx) => {
