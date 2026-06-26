@@ -113,6 +113,25 @@ interface GoldSpark {
   isScroll?: boolean;
 }
 
+type StoryStage =
+  | 'summoning'
+  | 'transition'
+  | 'shepherd'
+  | 'characters'
+  | 'palace'
+  | 'reminisce'
+  | 'ritual_outline'
+  | 'ritual_interior'
+  | 'ritual_final'
+  | 'curtain';
+
+interface AmbientMusicController {
+  ctx: AudioContext;
+  masterGain: GainNode;
+  filter: BiquadFilterNode;
+  intervalId: number;
+}
+
 // Audio Synthesis Helpers (Pure Web Audio physical modeling of sheep and bronze chime bells)
 const playSheepSound = (pitch = 1.0) => {
   try {
@@ -216,6 +235,108 @@ const playChimeBellSound = (freq = 440) => {
     masterGain.connect(ctx.destination);
   } catch (err) {
     console.warn("Chime Audio failed:", err);
+  }
+};
+
+let ambientMusicController: AmbientMusicController | null = null;
+
+const ringAmbientTone = (ctx: AudioContext, destination: AudioNode, freq: number, delay = 0) => {
+  const now = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, now);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.055, now + 0.08);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 4.6);
+
+  osc.connect(gain);
+  gain.connect(destination);
+  osc.start(now);
+  osc.stop(now + 4.8);
+};
+
+const startAmbientMusic = () => {
+  try {
+    if (ambientMusicController) {
+      ambientMusicController.ctx.resume();
+      return;
+    }
+
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    const masterGain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    const padGain = ctx.createGain();
+    const shimmerGain = ctx.createGain();
+    const lfo = ctx.createOscillator();
+    const lfoGain = ctx.createGain();
+    const padNotes = [130.81, 196.0, 261.63];
+
+    masterGain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    masterGain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 2.2);
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(760, ctx.currentTime);
+    filter.Q.setValueAtTime(0.8, ctx.currentTime);
+    padGain.gain.setValueAtTime(0.34, ctx.currentTime);
+    shimmerGain.gain.setValueAtTime(0.1, ctx.currentTime);
+    lfo.frequency.setValueAtTime(0.045, ctx.currentTime);
+    lfoGain.gain.setValueAtTime(24, ctx.currentTime);
+    lfo.connect(lfoGain);
+    lfoGain.connect(filter.frequency);
+    lfo.start();
+
+    padNotes.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = idx === 0 ? 'triangle' : 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(idx === 0 ? 0.16 : 0.1, ctx.currentTime);
+      osc.connect(gain);
+      gain.connect(padGain);
+      osc.start();
+    });
+
+    const shimmer = ctx.createOscillator();
+    shimmer.type = 'sine';
+    shimmer.frequency.setValueAtTime(523.25, ctx.currentTime);
+    shimmer.connect(shimmerGain);
+    shimmerGain.connect(filter);
+    padGain.connect(filter);
+    filter.connect(masterGain);
+    masterGain.connect(ctx.destination);
+    shimmer.start();
+
+    const intervalId = window.setInterval(() => {
+      if (!ambientMusicController) return;
+      const tones = [196.0, 220.0, 261.63, 293.66, 329.63, 392.0];
+      const tone = tones[Math.floor(Math.random() * tones.length)];
+      ringAmbientTone(ctx, filter, tone, 0);
+      if (Math.random() > 0.48) ringAmbientTone(ctx, filter, tone * 1.5, 0.28);
+    }, 4200);
+
+    ambientMusicController = { ctx, masterGain, filter, intervalId };
+  } catch (err) {
+    console.warn("Ambient music failed:", err);
+  }
+};
+
+const setAmbientMusicMood = (mood: 'journey' | 'curtain') => {
+  if (!ambientMusicController) return;
+  const { ctx, masterGain, filter } = ambientMusicController;
+  const now = ctx.currentTime;
+  if (mood === 'curtain') {
+    masterGain.gain.cancelScheduledValues(now);
+    filter.frequency.cancelScheduledValues(now);
+    masterGain.gain.setTargetAtTime(0.18, now, 1.4);
+    filter.frequency.setTargetAtTime(520, now, 1.8);
+    [130.81, 196.0, 261.63, 329.63].forEach((freq, idx) => ringAmbientTone(ctx, filter, freq, idx * 0.42));
+  } else {
+    masterGain.gain.setTargetAtTime(0.12, now, 1.2);
+    filter.frequency.setTargetAtTime(780, now, 1.4);
   }
 };
 
@@ -637,6 +758,25 @@ const NARRATIVE_LINES = [
   "属于南越的荣耀。"
 ];
 
+const FINAL_CURTAIN_LINES = [
+  "今天。",
+  "你再次注视我。",
+  "我不再只是文物。",
+  "我是过去。",
+  "也是现在。",
+  "当最后一道光。",
+  "落在我的身上。",
+  "金叶。",
+  "慢慢化作新的图腾。",
+  "它不属于某一个王。",
+  "也不属于某一个时代。",
+  "它属于。",
+  "仍然热爱这片土地的人。",
+  "因为。",
+  "文明。",
+  "从未停止生长。"
+];
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const leafRef = useRef<LeafState | null>(null);
@@ -652,8 +792,9 @@ export default function App() {
   const particlesRef = useRef<GoldSpark[]>([]);
 
   // Chapter 3 Story Progression & Audio
-  const [storyStage, setStoryStage] = useState<'summoning' | 'transition' | 'shepherd' | 'characters' | 'palace' | 'reminisce' | 'ritual_outline' | 'ritual_interior' | 'ritual_final'>('summoning');
-  const storyStageRef = useRef<'summoning' | 'transition' | 'shepherd' | 'characters' | 'palace' | 'reminisce' | 'ritual_outline' | 'ritual_interior' | 'ritual_final'>('summoning');
+  const [storyStage, setStoryStage] = useState<StoryStage>('summoning');
+  const storyStageRef = useRef<StoryStage>('summoning');
+  const [observatoryOpen, setObservatoryOpen] = useState(false);
   
   const [reminisceStep, setReminisceStep] = useState(0);
   const reminisceStepRef = useRef(0);
@@ -750,6 +891,7 @@ export default function App() {
     // Reset Chapter 3 story phases
     storyStageRef.current = 'summoning';
     setStoryStage('summoning');
+    setObservatoryOpen(false);
     summonedTypesRef.current = [];
     setSummonedTypes([]);
     palaceProgressRef.current = 0;
@@ -820,6 +962,7 @@ export default function App() {
     // Reset all story progression variables
     storyStageRef.current = 'summoning';
     setStoryStage('summoning');
+    setObservatoryOpen(false);
     summonedTypesRef.current = [];
     setSummonedTypes([]);
     palaceProgressRef.current = 0;
@@ -1085,6 +1228,7 @@ export default function App() {
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
+      startAmbientMusic();
 
       const leaf = leafRef.current;
       if (leaf && progressRef.current >= 0.99) {
@@ -1098,6 +1242,7 @@ export default function App() {
           clickCountRef.current = nextCount;
           setClickCount(nextCount);
           lastClickTimeRef.current = performance.now();
+          if (nextCount === 3) setAmbientMusicMood('journey');
           return; // Prevent clicking on sheep/guides in the same frame
         }
       }
@@ -1526,10 +1671,17 @@ export default function App() {
 
         // I. Ritual Final stage: clicks spawn gold sparks and chimes
         if (stage === 'ritual_final') {
+          storyStageRef.current = 'curtain';
+          setStoryStage('curtain');
+          setObservatoryOpen(false);
+          setAmbientMusicMood('curtain');
+
           const pentatonic = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25];
-          playChimeBellSound(pentatonic[Math.floor(Math.random() * pentatonic.length)]);
+          pentatonic.slice(0, 5).forEach((freq, idx) => {
+            setTimeout(() => playChimeBellSound(freq), idx * 180);
+          });
           
-          for (let i = 0; i < 15; i++) {
+          for (let i = 0; i < 42; i++) {
             const angle = Math.random() * Math.PI * 2;
             const speed = 0.8 + Math.random() * 4.0;
             particlesRef.current.push({
@@ -1543,6 +1695,11 @@ export default function App() {
               color: 'rgba(251, 191, 36, 0.95)'
             });
           }
+          return;
+        }
+
+        // J. Curtain stage: the observatory is opened through the right-side control.
+        if (stage === 'curtain') {
           return;
         }
       }
@@ -3280,7 +3437,7 @@ export default function App() {
           glowLevel = 0.38 + Math.sin(time * 0.05) * 0.12;
         } else if (stageForGlow === 'ritual_interior') {
           glowLevel = 0.88 + Math.sin(time * 0.065) * 0.22;
-        } else if (stageForGlow === 'ritual_final') {
+        } else if (stageForGlow === 'ritual_final' || stageForGlow === 'curtain') {
           glowLevel = 1.95 + Math.sin(time * 0.08) * 0.35;
         }
 
@@ -3347,7 +3504,7 @@ export default function App() {
         let scaleY = normalScaleY * (1.0 - landProgress) + flatScaleY * landProgress;
 
         const stage = storyStageRef.current;
-        if (stage === 'ritual_outline' || stage === 'ritual_interior' || stage === 'ritual_final') {
+        if (stage === 'ritual_outline' || stage === 'ritual_interior' || stage === 'ritual_final' || stage === 'curtain') {
           // Perfectly erect and large for magnificent detail visibility
           scaleX = 1.35;
           scaleY = 1.35;
@@ -3387,7 +3544,7 @@ export default function App() {
         ctx.shadowBlur = shadowBlur;
 
         // Update ritual interior progress
-        if (stage === 'ritual_outline' || stage === 'ritual_interior' || stage === 'ritual_final') {
+        if (stage === 'ritual_outline' || stage === 'ritual_interior' || stage === 'ritual_final' || stage === 'curtain') {
           ritualInteriorProgressRef.current += (1.0 - ritualInteriorProgressRef.current) * 0.012;
         } else {
           ritualInteriorProgressRef.current = 0.0;
@@ -3418,7 +3575,7 @@ export default function App() {
           let drawMode: 'solid' | 'outline' | 'engraved' = 'engraved';
           if (stage === 'summoning' || stage === 'transition' || stage === 'shepherd' || stage === 'characters' || stage === 'palace' || stage === 'reminisce') {
             drawMode = 'outline'; // outline only (Gold Leaf 2)
-          } else if (stage === 'ritual_outline' || stage === 'ritual_interior' || stage === 'ritual_final') {
+          } else if (stage === 'ritual_outline' || stage === 'ritual_interior' || stage === 'ritual_final' || stage === 'curtain') {
             drawMode = 'engraved'; // active ritual: reveals interior details (Gold Leaf 3)
           }
           let desaturation = 0.0; // always keep gold color
@@ -3662,8 +3819,79 @@ export default function App() {
               The Gold Leaf is fully restored, shining alone in the pitch dark void!
             </p>
             <span className="text-amber-200/30 font-mono text-[9px] md:text-[10px] tracking-[0.4em] uppercase mt-6">
-              ✦ 触碰画面奏响千古礼乐 / TAP TO RING THE BIENZHONG CHIMES ✦
+              ✦ 触碰画面进入落幕 / TAP TO ENTER THE FINAL CURTAIN ✦
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Final Curtain: closing poem and observatory entry */}
+      {storyStage === 'curtain' && (
+        <div
+          className="absolute inset-0 z-20 pointer-events-none select-none animate-fade-in"
+          id="final-curtain-container"
+        >
+          <div className="absolute inset-0 bg-black/55" />
+          <div className="relative z-10 grid h-full grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(320px,0.75fr)] items-center gap-8 px-8 md:px-20 py-16">
+            <section className="max-w-xl">
+              <div className="mb-7 h-px w-24 bg-amber-200/60" />
+              <div className="space-y-2.5 md:space-y-3.5">
+                {FINAL_CURTAIN_LINES.map((line, index) => (
+                  <p
+                    key={`${line}-${index}`}
+                    className={`font-serif leading-relaxed drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)] ${
+                      line === '文明。' || line === '从未停止生长。'
+                        ? 'text-2xl md:text-4xl text-amber-100 tracking-[0.24em] pt-2'
+                        : 'text-base md:text-xl text-amber-100/88 tracking-[0.18em]'
+                    }`}
+                    style={{ animationDelay: `${index * 90}ms` }}
+                  >
+                    {line}
+                  </p>
+                ))}
+              </div>
+            </section>
+
+            <aside className="justify-self-start md:justify-self-end w-full max-w-sm pointer-events-auto">
+              <div className="border border-amber-100/35 bg-black/70 px-6 py-6 shadow-[0_0_42px_rgba(245,158,11,0.16)] backdrop-blur-sm">
+                <p className="mb-2 font-mono text-[10px] tracking-[0.45em] text-amber-200/45">
+                  OBSERVATION DECK
+                </p>
+                <h2 className="font-serif text-2xl md:text-3xl tracking-[0.28em] text-amber-100">
+                  打开观测台
+                </h2>
+                <p className="mt-4 font-serif text-sm leading-7 tracking-[0.12em] text-amber-100/62">
+                  从图腾回望金叶，从今天重新注视文明生长的痕迹。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setObservatoryOpen((open) => !open)}
+                  className="mt-7 w-full border border-amber-100/70 bg-amber-100/10 px-5 py-3 font-mono text-xs tracking-[0.28em] text-amber-100 transition-all duration-300 hover:bg-amber-100 hover:text-black hover:shadow-[0_0_26px_rgba(251,191,36,0.45)]"
+                >
+                  {observatoryOpen ? '收起观测台 / CLOSE' : '进入观测台 / OPEN'}
+                </button>
+
+                {observatoryOpen && (
+                  <div className="mt-6 border-t border-amber-100/20 pt-5 font-mono text-[10px] leading-6 tracking-[0.18em] text-amber-100/65">
+                    <div className="flex justify-between gap-4">
+                      <span>OBJECT</span>
+                      <span className="text-right text-amber-100">GOLD LEAF TOTEM</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>STATE</span>
+                      <span className="text-right text-amber-100">PAST / PRESENT</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span>LIGHT</span>
+                      <span className="text-right text-amber-100">FINAL BEAM</span>
+                    </div>
+                    <div className="mt-4 font-serif text-sm leading-7 tracking-[0.1em] text-amber-100/78">
+                      它属于仍然热爱这片土地的人。文明，从未停止生长。
+                    </div>
+                  </div>
+                )}
+              </div>
+            </aside>
           </div>
         </div>
       )}
