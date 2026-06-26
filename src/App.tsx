@@ -777,6 +777,8 @@ const FINAL_CURTAIN_LINES = [
   "从未停止生长。"
 ];
 
+const OBSERVATORY_URL = "https://v-oneehnilo.github.io/MIE/?v=bgm-loop-fade-1";
+
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const leafRef = useRef<LeafState | null>(null);
@@ -3865,34 +3867,39 @@ export default function App() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setObservatoryOpen((open) => !open)}
+                  onClick={() => setObservatoryOpen(true)}
                   className="mt-7 w-full border border-amber-100/70 bg-amber-100/10 px-5 py-3 font-mono text-xs tracking-[0.28em] text-amber-100 transition-all duration-300 hover:bg-amber-100 hover:text-black hover:shadow-[0_0_26px_rgba(251,191,36,0.45)]"
                 >
-                  {observatoryOpen ? '收起观测台 / CLOSE' : '进入观测台 / OPEN'}
+                  进入观测台 / OPEN
                 </button>
-
-                {observatoryOpen && (
-                  <div className="mt-6 border-t border-amber-100/20 pt-5 font-mono text-[10px] leading-6 tracking-[0.18em] text-amber-100/65">
-                    <div className="flex justify-between gap-4">
-                      <span>OBJECT</span>
-                      <span className="text-right text-amber-100">GOLD LEAF TOTEM</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span>STATE</span>
-                      <span className="text-right text-amber-100">PAST / PRESENT</span>
-                    </div>
-                    <div className="flex justify-between gap-4">
-                      <span>LIGHT</span>
-                      <span className="text-right text-amber-100">FINAL BEAM</span>
-                    </div>
-                    <div className="mt-4 font-serif text-sm leading-7 tracking-[0.1em] text-amber-100/78">
-                      它属于仍然热爱这片土地的人。文明，从未停止生长。
-                    </div>
-                  </div>
-                )}
               </div>
             </aside>
           </div>
+
+          {observatoryOpen && (
+            <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4 py-6 pointer-events-auto backdrop-blur-sm">
+              <div className="relative h-[78vh] w-[min(92vw,1180px)] overflow-hidden border border-amber-100/40 bg-black shadow-[0_0_70px_rgba(245,158,11,0.2)]">
+                <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-between border-b border-white/10 bg-black/80 px-4 py-3">
+                  <div className="font-mono text-[10px] tracking-[0.34em] text-amber-100/70">
+                    MIE DIGITAL RELIC OBSERVATORY
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setObservatoryOpen(false)}
+                    className="border border-white/40 px-3 py-1.5 font-mono text-[10px] tracking-[0.22em] text-white transition hover:bg-white hover:text-black"
+                  >
+                    关闭 / CLOSE
+                  </button>
+                </div>
+                <iframe
+                  title="羊头纹杏形金叶观测台"
+                  src={OBSERVATORY_URL}
+                  className="h-full w-full pt-11"
+                  allow="autoplay; fullscreen"
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
