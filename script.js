@@ -310,13 +310,6 @@ function makeEntryLeaf(source, config) {
 
 function getEntryLeafConfigs() {
   return [
-    { position: [-3.6, 1.35, -2.4], scale: 1.08, rotation: [-0.12, -0.35, 0.18], floatSpeed: 0.7, floatPhase: 0.2 },
-    { position: [-1.35, 2.0, -3.1], scale: 0.88, rotation: [-0.05, 0.18, -0.12], floatSpeed: 0.84, floatPhase: 1.4 },
-    { position: [1.52, 1.65, -2.7], scale: 1.02, rotation: [-0.16, -0.18, 0.08], floatSpeed: 0.76, floatPhase: 2.1 },
-    { position: [3.65, 0.38, -3.2], scale: 0.82, rotation: [-0.08, 0.32, -0.18], floatSpeed: 0.92, floatPhase: 3.0 },
-    { position: [2.6, -1.58, -2.45], scale: 0.94, rotation: [-0.18, -0.28, 0.2], floatSpeed: 0.74, floatPhase: 4.3 },
-    { position: [0.0, -2.0, -2.9], scale: 1.06, rotation: [-0.06, 0.1, -0.06], floatSpeed: 0.82, floatPhase: 5.2 },
-    { position: [-2.62, -1.45, -2.5], scale: 0.9, rotation: [-0.14, 0.24, 0.16], floatSpeed: 0.78, floatPhase: 6.1 },
     { position: [0.02, -0.12, -1.85], scale: 1.34, rotation: [-0.1, 0, 0], floatSpeed: 0.68, floatPhase: 2.8 },
   ];
 }
@@ -325,7 +318,7 @@ async function loadEntryLeaves(attempt = 1) {
   entryLoading?.classList.remove("is-hidden");
   const loadingText = entryLoading?.querySelector("span");
   if (loadingText) {
-    loadingText.textContent = attempt === 1 ? "正在生成入口中的八片建模金叶" : `正在重试入口建模 ${attempt}/${ENTRY_MAX_LOAD_ATTEMPTS}`;
+    loadingText.textContent = attempt === 1 ? "正在生成入口中的单片建模金叶" : `正在重试入口建模 ${attempt}/${ENTRY_MAX_LOAD_ATTEMPTS}`;
   }
   if (MeshoptDecoder.ready) {
     await MeshoptDecoder.ready;
@@ -574,7 +567,7 @@ function handleGestureResult(result, now) {
     }
     if (entryFistPrimed && (label === "Open_Palm" || label === "Pointing_Up")) {
       entryGestureStatus.textContent = "正在进入观察台";
-      enterObservatory(entryLeafObjects[7] || null);
+      enterObservatory(entryLeafObjects[0] || null);
       return;
     }
     entryGestureStatus.textContent = "请先握拳，再松开手指";
